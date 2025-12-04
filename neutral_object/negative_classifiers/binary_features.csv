@@ -1,0 +1,3 @@
+,4,3,5,0,7,6,2,8,9,1,12,11,10,14,13,15
+0,categorical__PhoneService_Yes,categorical__OnlineBackup_No,categorical__gender_Female,categorical__Dependents_No,categorical__OnlineSecurity_Yes,categorical__TechSupport_Yes,categorical__PaperlessBilling_Yes,categorical__Partner_No,categorical__DeviceProtection_Yes,categorical__MultipleLines_Yes,categorical__PaymentMethod_Bank transfer (automatic),categorical__StreamingMovies_Yes,categorical__StreamingTV_Yes,categorical__InternetService_Fiber optic,categorical__Contract_Month-to-month,categorical__SeniorCitizen_1
+1,948,709,502,499,393,388,348,337,310,290,285,228,224,79,72,11

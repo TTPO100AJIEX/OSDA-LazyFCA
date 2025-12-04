@@ -1,0 +1,6 @@
+,supported_by,categorical__Dependents_No,categorical__TechSupport_No,categorical__MultipleLines_Yes,categorical__PaperlessBilling_Yes,categorical__OnlineSecurity_No,categorical__OnlineBackup_No,categorical__PhoneService_Yes,categorical__DeviceProtection_No,categorical__StreamingTV_Yes,categorical__gender_Female,categorical__Contract_Month-to-month,categorical__InternetService_Fiber optic,categorical__StreamingMovies_Yes,numeric__tenure,numeric__MonthlyCharges,numeric__TotalCharges
+0,77, ,x, , ,x,x,x,x, , , , , ,[16.0; 72.0],[18.8; 96.4],[279.2; 1874.3]
+4,6, , , , , , , , ,x,x, , ,x,[16.0; 72.0],[59.55; 96.4],[1581.2; 6520.8]
+1,1,x,x, ,x, ,x,x,x,x,x, , , ,[16.0; 35.0],[62.15; 96.4],[1581.2; 2215.45]
+2,1, , , , ,x,x,x, , , ,x, , ,[16.0; 31.0],[54.35; 96.4],[1581.2; 1647.0]
+3,1, , ,x,x, , ,x, , ,x, ,x, ,[16.0; 71.0],[95.15; 96.4],[1581.2; 6770.85]

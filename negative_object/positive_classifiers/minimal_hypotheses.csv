@@ -1,0 +1,4 @@
+,supported_by,categorical__Dependents_Yes,categorical__TechSupport_No,categorical__MultipleLines_No,categorical__OnlineSecurity_No,categorical__OnlineBackup_No,categorical__Partner_Yes,categorical__PhoneService_Yes,categorical__SeniorCitizen_0,categorical__gender_Female,numeric__tenure,numeric__MonthlyCharges,numeric__TotalCharges
+1,5, ,x, ,x, , ,x, , ,[3.0; 72.0],[19.55; 105.0],[294.45; 2755.35]
+0,1,x, ,x,x, ,x,x,x,x,[21.0; 72.0],[19.55; 102.8],[1463.45; 2110.15]
+2,1, ,x,x, ,x,x,x, ,x,[27.0; 72.0],[19.55; 101.25],[1463.45; 2754.45]
