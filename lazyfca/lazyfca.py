@@ -39,6 +39,8 @@ class LazyFCA:
 
         num_positive_classifiers *= self.pos_clas_coef
         total = num_positive_classifiers + num_negative_classifiers
+        if total == 0:
+            return [0.5, 0.5]
         return [(num_negative_classifiers / total), (num_positive_classifiers / total)]
 
     def predict(self, X_test: pandas.DataFrame, n_jobs: int = -1) -> numpy.ndarray:
