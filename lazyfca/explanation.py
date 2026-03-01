@@ -20,7 +20,7 @@ class Explanation:
     def display(self):
         return pandas.DataFrame(
             [
-                *[classifier.get_metrics() for classifier in self.positive_classifiers],
-                *[classifier.get_metrics() for classifier in self.negative_classifiers],
+                *[classifier.to_dict(with_metrics=True) for classifier in self.positive_classifiers],
+                *[classifier.to_dict(with_metrics=True) for classifier in self.negative_classifiers],
             ]
         )

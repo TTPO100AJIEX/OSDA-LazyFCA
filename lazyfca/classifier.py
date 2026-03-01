@@ -1,4 +1,6 @@
+from __future__ import annotations
 import math
+import dataclasses
 
 import numpy
 
@@ -37,8 +39,8 @@ class Classifier:
         POSITIVE = "POSITIVE"
         NEGATIVE = "NEGATIVE"
 
-    def __init__(self, hypothesis: Hypothesis, dataset: Dataset, type: Type):
-        self.hypothesis = hypothesis
+    def __init__(self, lhs: Sample, rhs: Sample, dataset: Dataset, type: Type):
+        self.hypothesis = Hypothesis(lhs, rhs)
         self.type = type
         match type:
             case Classifier.Type.POSITIVE:
@@ -47,6 +49,60 @@ class Classifier:
             case Classifier.Type.NEGATIVE:
                 self.supporters = dataset.negative
                 self.opposers = dataset.positive
+
+    @dataclasses.dataclass
+    class Metrics:
+        supporters_covered: int = 0
+        opposers_covered: int = numpy.inf
+        supporter_opposer_ratio: float = 1.0
+        support: float = 0.0
+        error_rate: float = 1.0
+        precision: float = 0.0
+        lift: float = 0.0
+        wracc: float = -numpy.inf
+        balanced_precision_proxy: float = -numpy.inf
+        youdens_j: float = -numpy.inf
+        matthews_correlation: float = -numpy.inf
+
+        def to_dict(self):
+            return {
+                "Supporters covered": self.supporters_covered,
+                "Opposers covered": self.opposers_covered,
+                "Supporters to opposers ratio": self.supporter_opposer_ratio,
+                "Support": self.support,
+                "Error rate": self.error_rate,
+                "Precision": self.precision,
+                "Lift": self.lift,
+                "WRAcc": self.wracc,
+                "Balanced precision proxy": self.balanced_precision_proxy,
+                "Youden's J": self.youdens_j,
+                "Matthews correlation": self.matthews_correlation,
+            }
+
+        def is_better_than(self, other: Classifier.Metrics) -> bool:
+            if self.supporters_covered < other.supporters_covered:
+                return False
+            if self.opposers_covered > other.opposers_covered:
+                return False
+            if self.supporter_opposer_ratio < other.supporter_opposer_ratio:
+                return False
+            if self.support < other.support:
+                return False
+            if self.error_rate > other.error_rate:
+                return False
+            if self.precision < other.precision:
+                return False
+            if self.lift < other.lift:
+                return False
+            if self.wracc < other.wracc:
+                return False
+            if self.balanced_precision_proxy < other.balanced_precision_proxy:
+                return False
+            if self.youdens_j < other.youdens_j:
+                return False
+            if self.matthews_correlation < other.matthews_correlation:
+                return False
+            return True
 
     def get_metrics(self):
         supporters_covered = self.hypothesis.covers(self.supporters)
@@ -60,19 +116,25 @@ class Classifier:
         p = len(self.supporters)
         n = len(self.opposers)
 
+        return Classifier.Metrics(
+            supporters_covered=tp,
+            opposers_covered=fp,
+            supporter_opposer_ratio=(tp / fp if fp != 0 else numpy.inf),
+            support=tp / p,
+            error_rate=fp / n,
+            precision=tp / (tp + fp),
+            lift=(tp / (tp + fp)) / (p / (p + n)),
+            wracc=((tp + fp) / (p + n)) * (tp / (tp + fp) - p / (p + n)),
+            balanced_precision_proxy=tp / p - fp / n,
+            youdens_j=tp / (tp + fn) - fp / (fp + tn),
+            matthews_correlation=(tp * tn - fp * fn) / math.sqrt((tp + fp) * (tp + fn) * (tn + fp) * (tn + fn)),
+        )
+
+    def to_dict(self, with_metrics: bool = True):
         return {
             "Hypothesis": self.hypothesis.to_string(),
             "Type": self.type,
-            "Supporters": p,
-            "Opposers": n,
-            "Supporters covered": p,
-            "Opposers covered": n,
-            "Support": tp / p,
-            "Error rate": fp / n,
-            "Precision": tp / (tp + fp),
-            "Lift": (tp / (tp + fp)) / (p / (p + n)),
-            "WRAcc": ((tp + fp) / (p + n)) * (tp / (tp + fp) - p / (p + n)),
-            "Balanced precision proxy": tp / p - fp / n,
-            "Youden's J": tp / (tp + fn) - fp / (fp + tn),
-            "Matthews correlation": (tp * tn - fp * fn) / math.sqrt((tp + fp) * (tp + fn) * (tn + fp) * (tn + fn)),
+            "Supporters": len(self.supporters),
+            "Opposers": len(self.opposers),
+            **(self.get_metrics().to_dict() if with_metrics else {}),
         }
