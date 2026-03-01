@@ -49,12 +49,13 @@ class Classifier:
             case Classifier.Type.NEGATIVE:
                 self.supporters = dataset.negative
                 self.opposers = dataset.positive
+        self.metrics = None
 
     @dataclasses.dataclass
     class Metrics:
         supporters_covered: int = 0
         opposers_covered: int = numpy.inf
-        supporter_opposer_ratio: float = 1.0
+        supporter_opposer_ratio: float = 0.0
         support: float = 0.0
         error_rate: float = 1.0
         precision: float = 0.0
@@ -141,6 +142,9 @@ class Classifier:
         return 1.0 - p_ratio ** 2 - n_ratio ** 2
 
     def get_metrics(self, eps: float = 0.5):
+        if self.metrics is not None:
+            return self.metrics
+
         supporters_covered = self.hypothesis.covers(self.supporters)
         opposers_covered = self.hypothesis.covers(self.opposers)
 
@@ -152,7 +156,7 @@ class Classifier:
         p = len(self.supporters)
         n = len(self.opposers)
 
-        return Classifier.Metrics(
+        self.metrics = Classifier.Metrics(
             supporters_covered=tp,
             opposers_covered=fp,
             supporter_opposer_ratio=(tp / fp if fp != 0 else numpy.inf),
@@ -178,6 +182,7 @@ class Classifier:
             chi_squared=((tp - p) ** 2 / p) + ((tn - n) ** 2 / n),
             g_test=2 * ((tp * math.log(tp / p)) + tn * math.log(tn / n)),
         )
+        return self.metrics
 
     def to_dict(self, with_metrics: bool = True):
         return {
