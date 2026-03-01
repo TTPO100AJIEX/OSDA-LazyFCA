@@ -63,6 +63,11 @@ class Classifier:
         balanced_precision_proxy: float = -numpy.inf
         youdens_j: float = -numpy.inf
         matthews_correlation: float = -numpy.inf
+        information_gain: float = -numpy.inf
+        gini_gain: float = -numpy.inf
+        log_odds_ratio: float = -numpy.inf
+        chi_squared: float = -numpy.inf
+        g_test: float = -numpy.inf
 
         def to_dict(self):
             return {
@@ -77,6 +82,11 @@ class Classifier:
                 "Balanced precision proxy": self.balanced_precision_proxy,
                 "Youden's J": self.youdens_j,
                 "Matthews correlation": self.matthews_correlation,
+                "Information gain": self.information_gain,
+                "Gini gain": self.gini_gain,
+                "Log odds ratio": self.log_odds_ratio,
+                "Chi squared": self.chi_squared,
+                "G-test": self.g_test,
             }
 
         def is_better_than(self, other: Classifier.Metrics) -> bool:
@@ -102,9 +112,35 @@ class Classifier:
                 return False
             if self.matthews_correlation < other.matthews_correlation:
                 return False
+            if self.information_gain < other.information_gain:
+                return False
+            if self.gini_gain < other.gini_gain:
+                return False
+            if self.log_odds_ratio < other.log_odds_ratio:
+                return False
+            if self.chi_squared < other.chi_squared:
+                return False
+            if self.g_test < other.g_test:
+                return False
             return True
 
-    def get_metrics(self):
+    def _binary_entropy(p: int, n: int) -> float:
+        total = p + n
+        if total == 0 or p == 0 or n == 0:
+            return 0.0
+        p_ratio = p / total
+        n_ratio = n / total
+        return -(p_ratio * math.log2(p_ratio) + n_ratio * math.log2(n_ratio))
+
+    def _gini_impurity(p: int, n: int) -> float:
+        total = p + n
+        if total == 0:
+            return 0.0
+        p_ratio = p / total
+        n_ratio = n / total
+        return 1.0 - p_ratio ** 2 - n_ratio ** 2
+
+    def get_metrics(self, eps: float = 0.5):
         supporters_covered = self.hypothesis.covers(self.supporters)
         opposers_covered = self.hypothesis.covers(self.opposers)
 
@@ -128,6 +164,19 @@ class Classifier:
             balanced_precision_proxy=tp / p - fp / n,
             youdens_j=tp / (tp + fn) - fp / (fp + tn),
             matthews_correlation=(tp * tn - fp * fn) / math.sqrt((tp + fp) * (tp + fn) * (tn + fp) * (tn + fn)),
+            # information_gain=(
+            #     self._binary_entropy(p, n)
+            #     - ((tp + fp) * self._binary_entropy(tp, fp) + (fn + tn) * self._binary_entropy(fn, tn)) / (p + n)
+            # ),
+            information_gain = - ((tp / p) * math.log(tp / p) + (tn / n) * math.log(tn / n)),
+            # gini_gain=(
+            #     self._gini_impurity(p, n)
+            #     - ((tp + fp) * self._gini_impurity(tp, fp) + (fn + tn) * self._gini_impurity(fn, tn)) / (p + n)
+            # ),
+            gini_gain = 1 - ((tp / p) ** 2 + (tn / n) ** 2),
+            log_odds_ratio=(tp + eps) / (fp + eps),
+            chi_squared=((tp - p) ** 2 / p) + ((tn - n) ** 2 / n),
+            g_test=2 * ((tp * math.log(tp / p)) + tn * math.log(tn / n)),
         )
 
     def to_dict(self, with_metrics: bool = True):
