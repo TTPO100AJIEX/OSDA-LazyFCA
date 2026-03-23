@@ -71,10 +71,12 @@ class LazyFCA:
                     explanation.negative_classifiers,
                 )
             )
-        positive_classifiers = self._rank_and_trim(positive_classifiers, self.pos_rank_by, self.pos_top_k)
-        negative_classifiers = self._rank_and_trim(negative_classifiers, self.neg_rank_by, self.neg_top_k)
+            positive_classifiers = self._rank_and_trim(positive_classifiers, self.pos_rank_by, self.pos_top_k)
+            negative_classifiers = self._rank_and_trim(negative_classifiers, self.neg_rank_by, self.neg_top_k)
         positive = len(positive_classifiers)
         negative = len(negative_classifiers)
+        if not probs:
+            return (negative, positive)
         positive *= self.pos_weight
         total = negative + positive
         return (0.5, 0.5) if total == 0 else ((negative / total), (positive / total))
