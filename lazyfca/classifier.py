@@ -237,7 +237,7 @@ class Classifier:
             return 0.0
         p_ratio = p / total
         n_ratio = n / total
-        return 1.0 - p_ratio ** 2 - n_ratio ** 2
+        return 1.0 - p_ratio**2 - n_ratio**2
 
     @staticmethod
     def _safe_div(numerator: float, denominator: float, default: float = 0.0) -> float:
@@ -346,32 +346,30 @@ class Classifier:
 
         information_gain = (
             self._binary_entropy(p, n)
-            - (
-                covered_total * self._binary_entropy(tp, fp)
-                + uncovered_total * self._binary_entropy(fn, tn)
-            ) / total
+            - (covered_total * self._binary_entropy(tp, fp) + uncovered_total * self._binary_entropy(fn, tn)) / total
         )
         gini_gain = (
             self._gini_impurity(p, n)
-            - (
-                covered_total * self._gini_impurity(tp, fp)
-                + uncovered_total * self._gini_impurity(fn, tn)
-            ) / total
+            - (covered_total * self._gini_impurity(tp, fp) + uncovered_total * self._gini_impurity(fn, tn)) / total
         )
 
         expected_tp, expected_fp, expected_fn, expected_tn = self._contingency_expected(tp, fp, fn, tn)
-        chi_squared = sum([
-            self._safe_div((tp - expected_tp) ** 2, expected_tp),
-            self._safe_div((fp - expected_fp) ** 2, expected_fp),
-            self._safe_div((fn - expected_fn) ** 2, expected_fn),
-            self._safe_div((tn - expected_tn) ** 2, expected_tn),
-        ])
-        g_test = 2.0 * sum([
-            self._xlogy(tp, expected_tp),
-            self._xlogy(fp, expected_fp),
-            self._xlogy(fn, expected_fn),
-            self._xlogy(tn, expected_tn),
-        ])
+        chi_squared = sum(
+            [
+                self._safe_div((tp - expected_tp) ** 2, expected_tp),
+                self._safe_div((fp - expected_fp) ** 2, expected_fp),
+                self._safe_div((fn - expected_fn) ** 2, expected_fn),
+                self._safe_div((tn - expected_tn) ** 2, expected_tn),
+            ]
+        )
+        g_test = 2.0 * sum(
+            [
+                self._xlogy(tp, expected_tp),
+                self._xlogy(fp, expected_fp),
+                self._xlogy(fn, expected_fn),
+                self._xlogy(tn, expected_tn),
+            ]
+        )
 
         query_binary_similarity = self._query_binary_similarity()
         interval_tightness, description_volume = self._interval_tightness()

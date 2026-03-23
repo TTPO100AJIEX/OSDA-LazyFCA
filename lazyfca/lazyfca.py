@@ -59,14 +59,18 @@ class LazyFCA:
             positive_classifiers = explanation.positive_classifiers
             negative_classifiers = explanation.negative_classifiers
         else:
-            positive_classifiers = list(filter(
-                lambda classifier: classifier.get_metrics().is_better_than(self.pos_params),
-                explanation.positive_classifiers,
-            ))
-            negative_classifiers = list(filter(
-                lambda classifier: classifier.get_metrics().is_better_than(self.neg_params),
-                explanation.negative_classifiers,
-            ))
+            positive_classifiers = list(
+                filter(
+                    lambda classifier: classifier.get_metrics().is_better_than(self.pos_params),
+                    explanation.positive_classifiers,
+                )
+            )
+            negative_classifiers = list(
+                filter(
+                    lambda classifier: classifier.get_metrics().is_better_than(self.neg_params),
+                    explanation.negative_classifiers,
+                )
+            )
         positive_classifiers = self._rank_and_trim(positive_classifiers, self.pos_rank_by, self.pos_top_k)
         negative_classifiers = self._rank_and_trim(negative_classifiers, self.neg_rank_by, self.neg_top_k)
         positive = len(positive_classifiers)
