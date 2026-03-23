@@ -14,10 +14,39 @@ from .classifier import Classifier
 class LazyFCA:
     Params = Classifier.Metrics
 
-    def __init__(self, pos_params: Params = Params(), neg_params: Params = Params(), pos_weight: float = 1.0):
+    def __init__(
+        self,
+        pos_params: Params = Params(),
+        neg_params: Params = Params(),
+        pos_weight: float = 1.0,
+        pos_rank_by: typing.Optional[str] = None,
+        neg_rank_by: typing.Optional[str] = None,
+        pos_top_k: typing.Optional[int] = None,
+        neg_top_k: typing.Optional[int] = None,
+    ):
         self.pos_params = pos_params
         self.neg_params = neg_params
         self.pos_weight = pos_weight
+        self.pos_rank_by = pos_rank_by
+        self.neg_rank_by = neg_rank_by
+        self.pos_top_k = pos_top_k
+        self.neg_top_k = neg_top_k
+
+    def _rank_and_trim(
+        self,
+        classifiers: typing.List[Classifier],
+        rank_by: typing.Optional[str],
+        top_k: typing.Optional[int],
+    ) -> typing.List[Classifier]:
+        if rank_by is not None:
+            classifiers = sorted(
+                classifiers,
+                key=lambda classifier: classifier.get_metrics().score_for_ranking(rank_by),
+                reverse=True,
+            )
+        if top_k is not None:
+            classifiers = classifiers[:top_k]
+        return classifiers
 
     def fit(self, X_train: pandas.DataFrame, y_train: pandas.Series):
         self.dataset = Dataset(X_train, y_train)
@@ -25,11 +54,21 @@ class LazyFCA:
 
     def classify_explanation(self, explanation: Explanation, trust: bool = True) -> typing.Tuple[float, float]:
         if trust:
-            positive = len(explanation.positive_classifiers)
-            negative = len(explanation.negative_classifiers)
+            positive_classifiers = explanation.positive_classifiers
+            negative_classifiers = explanation.negative_classifiers
         else:
-            positive = sum([c.get_metrics().is_better_than(self.pos_params) for c in explanation.positive_classifiers])
-            negative = sum([c.get_metrics().is_better_than(self.neg_params) for c in explanation.negative_classifiers])
+            positive_classifiers = list(filter(
+                lambda classifier: classifier.get_metrics().is_better_than(self.pos_params),
+                explanation.positive_classifiers,
+            ))
+            negative_classifiers = list(filter(
+                lambda classifier: classifier.get_metrics().is_better_than(self.neg_params),
+                explanation.negative_classifiers,
+            ))
+        positive_classifiers = self._rank_and_trim(positive_classifiers, self.pos_rank_by, self.pos_top_k)
+        negative_classifiers = self._rank_and_trim(negative_classifiers, self.neg_rank_by, self.neg_top_k)
+        positive = len(positive_classifiers)
+        negative = len(negative_classifiers)
         positive *= self.pos_weight
         total = negative + positive
         return (0.5, 0.5) if total == 0 else ((negative / total), (positive / total))
@@ -55,14 +94,33 @@ class LazyFCA:
     def explain_sample(self, sample: pandas.Series) -> Explanation:
         sample = self.dataset.make_sample(sample)
 
-        def make_classifiers(type: Classifier.Type, subset: Subset, params: Classifier.Metrics):
+        def make_classifiers(
+            type: Classifier.Type,
+            subset: Subset,
+            params: Classifier.Metrics,
+            rank_by: typing.Optional[str],
+            top_k: typing.Optional[int],
+        ):
             classifiers = map(lambda example: Classifier(sample, example, self.dataset, type), subset)
-            return list(filter(lambda classifier: classifier.get_metrics().is_better_than(params), classifiers))
+            classifiers = list(filter(lambda classifier: classifier.get_metrics().is_better_than(params), classifiers))
+            return self._rank_and_trim(classifiers, rank_by, top_k)
 
         return Explanation(
             sample,
-            make_classifiers(Classifier.Type.POSITIVE, self.dataset.positive, self.pos_params),
-            make_classifiers(Classifier.Type.NEGATIVE, self.dataset.negative, self.neg_params),
+            make_classifiers(
+                Classifier.Type.POSITIVE,
+                self.dataset.positive,
+                self.pos_params,
+                self.pos_rank_by,
+                self.pos_top_k,
+            ),
+            make_classifiers(
+                Classifier.Type.NEGATIVE,
+                self.dataset.negative,
+                self.neg_params,
+                self.neg_rank_by,
+                self.neg_top_k,
+            ),
         )
 
     def explain(self, X_test: pandas.DataFrame, n_jobs: int = -1) -> typing.List[Explanation]:
