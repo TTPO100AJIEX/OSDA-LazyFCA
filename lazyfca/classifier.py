@@ -180,6 +180,7 @@ class Classifier:
                 return False
             return True
 
+    @staticmethod
     def _binary_entropy(p: int, n: int) -> float:
         total = p + n
         if total == 0 or p == 0 or n == 0:
@@ -188,6 +189,7 @@ class Classifier:
         n_ratio = n / total
         return -(p_ratio * math.log2(p_ratio) + n_ratio * math.log2(n_ratio))
 
+    @staticmethod
     def _gini_impurity(p: int, n: int) -> float:
         total = p + n
         if total == 0:
@@ -196,14 +198,17 @@ class Classifier:
         n_ratio = n / total
         return 1.0 - p_ratio ** 2 - n_ratio ** 2
 
+    @staticmethod
     def _safe_div(numerator: float, denominator: float, default: float = 0.0) -> float:
         return numerator / denominator if denominator != 0 else default
 
+    @staticmethod
     def _xlogy(observed: float, expected: float) -> float:
         if observed <= 0 or expected <= 0:
             return 0.0
         return observed * math.log(observed / expected)
 
+    @staticmethod
     def _contingency_expected(tp: int, fp: int, fn: int, tn: int) -> tuple[float, float, float, float]:
         total = tp + fp + fn + tn
         positive_row = tp + fp
