@@ -123,6 +123,47 @@ class Classifier:
             value = getattr(self, field)
             return -value if field in self.minimized_fields() else value
 
+        @staticmethod
+        def from_dict(dictionary: dict) -> Classifier.Metrics:
+            result = Classifier.Metrics()
+            for key, value in dictionary.items():
+                match key:
+                    case "Supporters covered":
+                        result.supporters_covered = value
+                    case "Opposers covered":
+                        result.opposers_covered = value
+                    case "Supporters to opposers ratio":
+                        result.supporter_opposer_ratio = value
+                    case "Support":
+                        result.support = value
+                    case "Error rate":
+                        result.error_rate = value
+                    case "Precision":
+                        result.precision = value
+                    case "Lift":
+                        result.lift = value
+                    case "WRAcc":
+                        result.wracc = value
+                    case "Balanced precision proxy":
+                        result.balanced_precision_proxy = value
+                    case "Youden's J":
+                        result.youdens_j = value
+                    case "Matthews correlation":
+                        result.matthews_correlation = value
+                    case "Information gain":
+                        result.information_gain = value
+                    case "Gini gain":
+                        result.gini_gain = value
+                    case "Log odds ratio":
+                        result.log_odds_ratio = value
+                    case "Chi squared":
+                        result.chi_squared = value
+                    case "G-test":
+                        result.g_test = value
+                    case __:
+                        assert False, f"Unknown key: {key}"
+            return result
+
         def is_better_than(self, other: Classifier.Metrics) -> bool:
             if self.supporters_covered < other.supporters_covered:
                 return False

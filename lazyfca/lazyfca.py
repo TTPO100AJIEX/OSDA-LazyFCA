@@ -52,7 +52,9 @@ class LazyFCA:
         self.dataset = Dataset(X_train, y_train)
         return self
 
-    def classify_explanation(self, explanation: Explanation, trust: bool = True) -> typing.Tuple[float, float]:
+    def classify_explanation(
+        self, explanation: Explanation, trust: bool = False, probs: bool = True
+    ) -> typing.Tuple[float, float]:
         if trust:
             positive_classifiers = explanation.positive_classifiers
             negative_classifiers = explanation.negative_classifiers
@@ -74,14 +76,12 @@ class LazyFCA:
         return (0.5, 0.5) if total == 0 else ((negative / total), (positive / total))
 
     def classify_explanations(
-        self, explanations: typing.List[Explanation], trust: bool = True
+        self, explanations: typing.List[Explanation], trust: bool = False, probs: bool = True
     ) -> numpy.ndarray:
-        return numpy.array([
-            self.classify_explanation(explanation, trust) for explanation in explanations
-        ])
+        return numpy.array([self.classify_explanation(explanation, trust, probs) for explanation in explanations])
 
     def classify_sample(self, sample: pandas.Series) -> typing.Tuple[float, float]:
-        return self.classify_explanation(self.explain_sample(sample), trust=True)
+        return self.classify_explanation(self.explain_sample(sample), trust=True, probs=True)
 
     def predict(self, X_test: pandas.DataFrame, n_jobs: int = -1) -> numpy.ndarray:
         return numpy.array(
