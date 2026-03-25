@@ -31,21 +31,6 @@ class LazyFCA:
         self.neg_rank_by = neg_rank_by
         self.pos_top_k = pos_top_k
         self.neg_top_k = neg_top_k
-        self.dataset = None
-
-    def __getstate__(self):
-        return self.__dict__.copy()
-
-    def __setstate__(self, state):
-        self.__dict__.update(state)
-        if not hasattr(self, 'pos_rank_by'):
-            self.pos_rank_by = None
-        if not hasattr(self, 'neg_rank_by'):
-            self.neg_rank_by = None
-        if not hasattr(self, 'pos_top_k'):
-            self.pos_top_k = None
-        if not hasattr(self, 'neg_top_k'):
-            self.neg_top_k = None
 
     def _rank_and_trim(
         self,
@@ -67,36 +52,42 @@ class LazyFCA:
         self.dataset = Dataset(X_train, y_train)
         return self
 
-    def classify_explanation(self, explanation: Explanation, trust: bool = True) -> typing.Tuple[float, float]:
+    def classify_explanation(
+        self, explanation: Explanation, trust: bool = False, probs: bool = True
+    ) -> typing.Tuple[float, float]:
         if trust:
             positive_classifiers = explanation.positive_classifiers
             negative_classifiers = explanation.negative_classifiers
         else:
-            positive_classifiers = list(filter(
-                lambda classifier: classifier.get_metrics().is_better_than(self.pos_params),
-                explanation.positive_classifiers,
-            ))
-            negative_classifiers = list(filter(
-                lambda classifier: classifier.get_metrics().is_better_than(self.neg_params),
-                explanation.negative_classifiers,
-            ))
-        positive_classifiers = self._rank_and_trim(positive_classifiers, self.pos_rank_by, self.pos_top_k)
-        negative_classifiers = self._rank_and_trim(negative_classifiers, self.neg_rank_by, self.neg_top_k)
+            positive_classifiers = list(
+                filter(
+                    lambda classifier: classifier.get_metrics().is_better_than(self.pos_params),
+                    explanation.positive_classifiers,
+                )
+            )
+            negative_classifiers = list(
+                filter(
+                    lambda classifier: classifier.get_metrics().is_better_than(self.neg_params),
+                    explanation.negative_classifiers,
+                )
+            )
+            positive_classifiers = self._rank_and_trim(positive_classifiers, self.pos_rank_by, self.pos_top_k)
+            negative_classifiers = self._rank_and_trim(negative_classifiers, self.neg_rank_by, self.neg_top_k)
         positive = len(positive_classifiers)
         negative = len(negative_classifiers)
+        if not probs:
+            return (negative, positive)
         positive *= self.pos_weight
         total = negative + positive
         return (0.5, 0.5) if total == 0 else ((negative / total), (positive / total))
 
     def classify_explanations(
-        self, explanations: typing.List[Explanation], trust: bool = True
+        self, explanations: typing.List[Explanation], trust: bool = False, probs: bool = True
     ) -> numpy.ndarray:
-        return numpy.array([
-            self.classify_explanation(explanation, trust) for explanation in explanations
-        ])
+        return numpy.array([self.classify_explanation(explanation, trust, probs) for explanation in explanations])
 
     def classify_sample(self, sample: pandas.Series) -> typing.Tuple[float, float]:
-        return self.classify_explanation(self.explain_sample(sample), trust=True)
+        return self.classify_explanation(self.explain_sample(sample), trust=True, probs=True)
 
     def predict(self, X_test: pandas.DataFrame, n_jobs: int = -1) -> numpy.ndarray:
         return numpy.array(
