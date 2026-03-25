@@ -280,7 +280,7 @@ def test_metric_thresholds(X_train, X_test, y_train, y_test, base_params, output
     all_results = []
     
     # Test each metric
-    for metric in METRICS[3:4]:
+    for metric in METRICS:
         print(f"\nProcessing metric: '{metric}'")
         
         score_column_name = metric_name_mapping.get(metric, metric)
