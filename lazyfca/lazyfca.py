@@ -31,6 +31,21 @@ class LazyFCA:
         self.neg_rank_by = neg_rank_by
         self.pos_top_k = pos_top_k
         self.neg_top_k = neg_top_k
+        self.dataset = None
+
+    def __getstate__(self):
+        return self.__dict__.copy()
+
+    def __setstate__(self, state):
+        self.__dict__.update(state)
+        if not hasattr(self, 'pos_rank_by'):
+            self.pos_rank_by = None
+        if not hasattr(self, 'neg_rank_by'):
+            self.neg_rank_by = None
+        if not hasattr(self, 'pos_top_k'):
+            self.pos_top_k = None
+        if not hasattr(self, 'neg_top_k'):
+            self.neg_top_k = None
 
     def _rank_and_trim(
         self,
