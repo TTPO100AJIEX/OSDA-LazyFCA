@@ -1,0 +1,15 @@
+metric,best_k,best_f1,avg_classifiers_kept
+query_weighted_precision,2,0.926829268292683,2.0
+wracc,166,0.6875,166.0
+balanced_precision_proxy,166,0.6875,166.0
+youdens_j,166,0.6875,166.0
+matthews_correlation,166,0.6875,166.0
+lift,166,0.6875,166.0
+information_gain,166,0.6875,166.0
+gini_gain,166,0.6875,166.0
+chi_squared,166,0.6875,166.0
+log_odds_ratio,166,0.6875,166.0
+g_test,166,0.6875,166.0
+query_weighted_wracc,166,0.6875,166.0
+stability,166,0.6875,166.0
+delta_stability,166,0.6875,166.0
