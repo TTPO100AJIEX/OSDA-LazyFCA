@@ -9,6 +9,35 @@ from .dataset import Subset
 from .dataset import Dataset
 
 
+METRIC_NAME_MAPPING = {
+    'opposers_covered': 'Opposers covered',
+    'support': 'Support',
+    'error_rate': 'Error rate',
+    'precision': 'Precision',
+    'lift': 'Lift',
+    'wracc': 'WRAcc',
+    'balanced_precision_proxy': 'Balanced precision proxy',
+    'youdens_j': "Youden's J",
+    'matthews_correlation': 'Matthews correlation',
+    'information_gain': 'Information gain',
+    'gini_gain': 'Gini gain',
+    'log_odds_ratio': 'Log odds ratio',
+    'chi_squared': 'Chi squared',
+    'g_test': 'G-test',
+    'interval_tightness': 'Interval tightness',
+    'description_volume': 'Description volume',
+    'simplicity_prior': 'Simplicity prior',
+    'query_binary_similarity': 'Query binary similarity',
+    'query_numeric_similarity': 'Query numeric similarity',
+    'query_similarity': 'Query similarity',
+    'query_weighted_precision': 'Query weighted precision',
+    'query_weighted_wracc': 'Query weighted WRAcc',
+    'stability': 'Stability',
+    'robustness': 'Robustness',
+    'delta_stability': 'Delta stability',
+}
+
+
 class Hypothesis:
     def __init__(self, lhs: Sample, rhs: Sample):
         numeric_stacked = numpy.vstack([lhs.numeric, rhs.numeric])
@@ -85,35 +114,13 @@ class Classifier:
         delta_stability: float = 0.0
 
         def to_dict(self):
-            return {
+            result = {
                 "Supporters covered": self.supporters_covered,
-                "Opposers covered": self.opposers_covered,
                 "Supporters to opposers ratio": self.supporter_opposer_ratio,
-                "Support": self.support,
-                "Error rate": self.error_rate,
-                "Precision": self.precision,
-                "Lift": self.lift,
-                "WRAcc": self.wracc,
-                "Balanced precision proxy": self.balanced_precision_proxy,
-                "Youden's J": self.youdens_j,
-                "Matthews correlation": self.matthews_correlation,
-                "Information gain": self.information_gain,
-                "Gini gain": self.gini_gain,
-                "Log odds ratio": self.log_odds_ratio,
-                "Chi squared": self.chi_squared,
-                "G-test": self.g_test,
-                "Interval tightness": self.interval_tightness,
-                "Description volume": self.description_volume,
-                "Simplicity prior": self.simplicity_prior,
-                "Query binary similarity": self.query_binary_similarity,
-                "Query numeric similarity": self.query_numeric_similarity,
-                "Query similarity": self.query_similarity,
-                "Query weighted precision": self.query_weighted_precision,
-                "Query weighted WRAcc": self.query_weighted_wracc,
-                "Stability": self.stability,
-                "Robustness": self.robustness,
-                "Delta stability": self.delta_stability,
             }
+            for field_name, display_name in METRIC_NAME_MAPPING.items():
+                result[display_name] = getattr(self, field_name)
+            return result
 
         @staticmethod
         def minimized_fields() -> set[str]:
@@ -126,42 +133,15 @@ class Classifier:
         @staticmethod
         def from_dict(dictionary: dict) -> Classifier.Metrics:
             result = Classifier.Metrics()
+            reverse_mapping = {v: k for k, v in METRIC_NAME_MAPPING.items()}
+            reverse_mapping["Supporters covered"] = "supporters_covered"
+            reverse_mapping["Supporters to opposers ratio"] = "supporter_opposer_ratio"
+            
             for key, value in dictionary.items():
-                match key:
-                    case "Supporters covered":
-                        result.supporters_covered = value
-                    case "Opposers covered":
-                        result.opposers_covered = value
-                    case "Supporters to opposers ratio":
-                        result.supporter_opposer_ratio = value
-                    case "Support":
-                        result.support = value
-                    case "Error rate":
-                        result.error_rate = value
-                    case "Precision":
-                        result.precision = value
-                    case "Lift":
-                        result.lift = value
-                    case "WRAcc":
-                        result.wracc = value
-                    case "Balanced precision proxy":
-                        result.balanced_precision_proxy = value
-                    case "Youden's J":
-                        result.youdens_j = value
-                    case "Matthews correlation":
-                        result.matthews_correlation = value
-                    case "Information gain":
-                        result.information_gain = value
-                    case "Gini gain":
-                        result.gini_gain = value
-                    case "Log odds ratio":
-                        result.log_odds_ratio = value
-                    case "Chi squared":
-                        result.chi_squared = value
-                    case "G-test":
-                        result.g_test = value
-                    case __:
-                        assert False, f"Unknown key: {key}"
+                if key in reverse_mapping:
+                    setattr(result, reverse_mapping[key], value)
+                else:
+                    assert False, f"Unknown key: {key}"
             return result
 
         def is_better_than(self, other: Classifier.Metrics) -> bool:
