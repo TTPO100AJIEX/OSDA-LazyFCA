@@ -9,35 +9,6 @@ from .dataset import Subset
 from .dataset import Dataset
 
 
-METRIC_NAME_MAPPING = {
-    'opposers_covered': 'Opposers covered',
-    'support': 'Support',
-    'error_rate': 'Error rate',
-    'precision': 'Precision',
-    'lift': 'Lift',
-    'wracc': 'WRAcc',
-    'balanced_precision_proxy': 'Balanced precision proxy',
-    'youdens_j': "Youden's J",
-    'matthews_correlation': 'Matthews correlation',
-    'information_gain': 'Information gain',
-    'gini_gain': 'Gini gain',
-    'log_odds_ratio': 'Log odds ratio',
-    'chi_squared': 'Chi squared',
-    'g_test': 'G-test',
-    'interval_tightness': 'Interval tightness',
-    'description_volume': 'Description volume',
-    'simplicity_prior': 'Simplicity prior',
-    'query_binary_similarity': 'Query binary similarity',
-    'query_numeric_similarity': 'Query numeric similarity',
-    'query_similarity': 'Query similarity',
-    'query_weighted_precision': 'Query weighted precision',
-    'query_weighted_wracc': 'Query weighted WRAcc',
-    'stability': 'Stability',
-    'robustness': 'Robustness',
-    'delta_stability': 'Delta stability',
-}
-
-
 class Hypothesis:
     def __init__(self, lhs: Sample, rhs: Sample):
         numeric_stacked = numpy.vstack([lhs.numeric, rhs.numeric])
@@ -113,18 +84,48 @@ class Classifier:
         robustness: float = 0.0
         delta_stability: float = 0.0
 
+        @dataclasses.dataclass
+        class Metadata:
+            name: str
+            attr: str
+            is_minimized: bool = False
+
+        METADATA = [
+            Metadata(name="Supporters covered", attr="supporters_covered"),
+            Metadata(name="Opposers covered", attr="opposers_covered", is_minimized=True),
+            Metadata(name="Supporters to opposers ratio", attr="supporter_opposer_ratio"),
+            Metadata(name="Support", attr="support"),
+            Metadata(name="Error rate", attr="error_rate", is_minimized=True),
+            Metadata(name="Precision", attr="precision"),
+            Metadata(name="Lift", attr="lift"),
+            Metadata(name="WRAcc", attr="wracc"),
+            Metadata(name="Balanced precision proxy", attr="balanced_precision_proxy"),
+            Metadata(name="Youden's J", attr="youdens_j"),
+            Metadata(name="Matthews correlation", attr="matthews_correlation"),
+            Metadata(name="Information gain", attr="information_gain"),
+            Metadata(name="Gini gain", attr="gini_gain"),
+            Metadata(name="Log odds ratio", attr="log_odds_ratio"),
+            Metadata(name="Chi squared", attr="chi_squared"),
+            Metadata(name="G-test", attr="g_test"),
+            Metadata(name="Interval tightness", attr="interval_tightness"),
+            Metadata(name="Description volume", attr="description_volume", is_minimized=True),
+            Metadata(name="Simplicity prior", attr="simplicity_prior"),
+            Metadata(name="Query binary similarity", attr="query_binary_similarity"),
+            Metadata(name="Query numeric similarity", attr="query_numeric_similarity"),
+            Metadata(name="Query similarity", attr="query_similarity"),
+            Metadata(name="Query weighted precision", attr="query_weighted_precision"),
+            Metadata(name="Query weighted WRAcc", attr="query_weighted_wracc"),
+            Metadata(name="Stability", attr="stability"),
+            Metadata(name="Robustness", attr="robustness"),
+            Metadata(name="Delta stability", attr="delta_stability"),
+        ]
+
         def to_dict(self):
-            result = {
-                "Supporters covered": self.supporters_covered,
-                "Supporters to opposers ratio": self.supporter_opposer_ratio,
-            }
-            for field_name, display_name in METRIC_NAME_MAPPING.items():
-                result[display_name] = getattr(self, field_name)
-            return result
+            return {metadata.name: getattr(self, metadata.attr) for metadata in Classifier.Metrics.METADATA}
 
         @staticmethod
         def minimized_fields() -> set[str]:
-            return {"opposers_covered", "error_rate", "description_volume"}
+            return [metadata.attr for metadata in Classifier.Metrics.METADATA if metadata.is_minimized]
 
         def score_for_ranking(self, field: str) -> float:
             value = getattr(self, field)
@@ -133,72 +134,19 @@ class Classifier:
         @staticmethod
         def from_dict(dictionary: dict) -> Classifier.Metrics:
             result = Classifier.Metrics()
-            reverse_mapping = {v: k for k, v in METRIC_NAME_MAPPING.items()}
-            reverse_mapping["Supporters covered"] = "supporters_covered"
-            reverse_mapping["Supporters to opposers ratio"] = "supporter_opposer_ratio"
-            
-            for key, value in dictionary.items():
-                if key in reverse_mapping:
-                    setattr(result, reverse_mapping[key], value)
-                else:
-                    assert False, f"Unknown key: {key}"
+            for metadata in Classifier.Metrics.METADATA:
+                if metadata.name in dictionary:
+                    setattr(result, metadata.attr, dictionary[metadata.name])
             return result
 
         def is_better_than(self, other: Classifier.Metrics) -> bool:
-            if self.supporters_covered < other.supporters_covered:
-                return False
-            if self.opposers_covered > other.opposers_covered:
-                return False
-            if self.supporter_opposer_ratio < other.supporter_opposer_ratio:
-                return False
-            if self.support < other.support:
-                return False
-            if self.error_rate > other.error_rate:
-                return False
-            if self.precision < other.precision:
-                return False
-            if self.lift < other.lift:
-                return False
-            if self.wracc < other.wracc:
-                return False
-            if self.balanced_precision_proxy < other.balanced_precision_proxy:
-                return False
-            if self.youdens_j < other.youdens_j:
-                return False
-            if self.matthews_correlation < other.matthews_correlation:
-                return False
-            if self.information_gain < other.information_gain:
-                return False
-            if self.gini_gain < other.gini_gain:
-                return False
-            if self.log_odds_ratio < other.log_odds_ratio:
-                return False
-            if self.description_volume > other.description_volume:
-                return False
-            if self.chi_squared < other.chi_squared:
-                return False
-            if self.g_test < other.g_test:
-                return False
-            if self.interval_tightness < other.interval_tightness:
-                return False
-            if self.simplicity_prior < other.simplicity_prior:
-                return False
-            if self.query_binary_similarity < other.query_binary_similarity:
-                return False
-            if self.query_numeric_similarity < other.query_numeric_similarity:
-                return False
-            if self.query_similarity < other.query_similarity:
-                return False
-            if self.query_weighted_precision < other.query_weighted_precision:
-                return False
-            if self.query_weighted_wracc < other.query_weighted_wracc:
-                return False
-            if self.stability < other.stability:
-                return False
-            if self.robustness < other.robustness:
-                return False
-            if self.delta_stability < other.delta_stability:
-                return False
+            for metadata in Classifier.Metrics.METADATA:
+                if metadata.is_minimized:
+                    if getattr(self, metadata.attr) > getattr(other, metadata.attr):
+                        return False
+                else:
+                    if getattr(self, metadata.attr) < getattr(other, metadata.attr):
+                        return False
             return True
 
     @staticmethod
