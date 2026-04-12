@@ -2,8 +2,8 @@ import typing
 
 import pandas
 
-from .classifier import Classifier
-from .dataset import Sample
+from lazyfca.classifier import Classifier
+from lazyfca.dataset import Sample
 
 
 class Explanation:
