@@ -23,6 +23,8 @@ class LazyFCA:
         neg_rank_by: typing.Optional[str] = None,
         pos_top_k: typing.Optional[int] = None,
         neg_top_k: typing.Optional[int] = None,
+        rank_by: typing.Optional[str] = None,
+        top_k: typing.Optional[int] = None,
     ):
         self.pos_params = pos_params
         self.neg_params = neg_params
@@ -31,22 +33,44 @@ class LazyFCA:
         self.neg_rank_by = neg_rank_by
         self.pos_top_k = pos_top_k
         self.neg_top_k = neg_top_k
+        self.rank_by = rank_by
+        self.top_k = top_k
+
+    def _rank(self, classifiers: typing.List[Classifier], rank_by: typing.Optional[str]) -> typing.List[Classifier]:
+        return sorted(
+            classifiers, key=lambda classifier: classifier.get_metrics().score_for_ranking(rank_by), reverse=True
+        )
 
     def _rank_and_trim(
-        self,
-        classifiers: typing.List[Classifier],
-        rank_by: typing.Optional[str],
-        top_k: typing.Optional[int],
+        self, classifiers: typing.List[Classifier], rank_by: typing.Optional[str], top_k: typing.Optional[int]
     ) -> typing.List[Classifier]:
         if rank_by is not None:
-            classifiers = sorted(
-                classifiers,
-                key=lambda classifier: classifier.get_metrics().score_for_ranking(rank_by),
-                reverse=True,
-            )
+            classifiers = self._rank(classifiers, rank_by)
         if top_k is not None:
             classifiers = classifiers[:top_k]
         return classifiers
+
+    def _get_top_k(
+        self,
+        positive_classifiers: typing.List[Classifier],
+        negative_classifiers: typing.List[Classifier],
+    ) -> typing.Tuple[typing.List[Classifier], typing.List[Classifier]]:
+        if self.rank_by is not None:
+            positive_classifiers = self._rank(positive_classifiers, self.rank_by)
+            negative_classifiers = self._rank(negative_classifiers, self.rank_by)
+        if self.top_k is not None:
+            top_positive, top_negative = 0, 0
+            while top_positive + top_negative < min(self.top_k, len(positive_classifiers) + len(negative_classifiers)):
+                next_positive = positive_classifiers[top_positive].get_metrics().score_for_ranking(self.rank_by)
+                next_negative = negative_classifiers[top_negative].get_metrics().score_for_ranking(self.rank_by)
+                if next_positive > next_negative:
+                    top_positive += 1
+                else:
+                    top_negative += 1
+            positive_classifiers = positive_classifiers[:top_positive]
+            negative_classifiers = negative_classifiers[:top_negative]
+
+        return positive_classifiers, negative_classifiers
 
     def fit(self, X_train: pandas.DataFrame, y_train: pandas.Series):
         self.dataset = Dataset(X_train, y_train)
@@ -73,6 +97,7 @@ class LazyFCA:
             )
             positive_classifiers = self._rank_and_trim(positive_classifiers, self.pos_rank_by, self.pos_top_k)
             negative_classifiers = self._rank_and_trim(negative_classifiers, self.neg_rank_by, self.neg_top_k)
+            positive_classifiers, negative_classifiers = self._get_top_k(positive_classifiers, negative_classifiers)
         positive = len(positive_classifiers)
         negative = len(negative_classifiers)
         if not probs:
@@ -111,23 +136,14 @@ class LazyFCA:
             classifiers = list(filter(lambda classifier: classifier.get_metrics().is_better_than(params), classifiers))
             return self._rank_and_trim(classifiers, rank_by, top_k)
 
-        return Explanation(
-            sample,
-            make_classifiers(
-                Classifier.Type.POSITIVE,
-                self.dataset.positive,
-                self.pos_params,
-                self.pos_rank_by,
-                self.pos_top_k,
-            ),
-            make_classifiers(
-                Classifier.Type.NEGATIVE,
-                self.dataset.negative,
-                self.neg_params,
-                self.neg_rank_by,
-                self.neg_top_k,
-            ),
+        positive_classifiers = make_classifiers(
+            Classifier.Type.POSITIVE, self.dataset.positive, self.pos_params, self.pos_rank_by, self.pos_top_k
         )
+        negative_classifiers = make_classifiers(
+            Classifier.Type.NEGATIVE, self.dataset.negative, self.neg_params, self.neg_rank_by, self.neg_top_k
+        )
+        positive_classifiers, negative_classifiers = self._get_top_k(positive_classifiers, negative_classifiers)
+        return Explanation(sample, positive_classifiers, negative_classifiers)
 
     def explain(self, X_test: pandas.DataFrame, n_jobs: int = -1) -> typing.List[Explanation]:
         return list(
