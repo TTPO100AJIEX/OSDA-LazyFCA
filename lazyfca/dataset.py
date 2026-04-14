@@ -14,12 +14,12 @@ class Sample:
     def __init__(self, *args):
         if len(args) == 3:
             X, bool_columns, numeric_columns = args
-            self.numeric = X[numeric_columns].to_numpy().astype(numpy.float64)
-            self.binary = X[bool_columns].to_numpy().astype(bool)
+            self.numeric: numpy.ndarray = X[numeric_columns].to_numpy().astype(numpy.float64)
+            self.binary: numpy.ndarray = X[bool_columns].to_numpy().astype(bool)
         elif len(args) == 2:
             binary, numeric = args
-            self.binary = binary
-            self.numeric = numeric
+            self.binary: numpy.ndarray = binary
+            self.numeric: numpy.ndarray = numeric
         else:
             assert False, "args must have 2 or 3 items (see overloads)"
 
