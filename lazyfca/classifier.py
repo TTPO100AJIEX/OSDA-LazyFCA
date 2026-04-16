@@ -9,6 +9,7 @@ from lazyfca.dataset import Dataset
 
 from lazyfca.metrics import Metrics
 from lazyfca.metrics import LazyMetrics
+from lazyfca.metrics import METADATA
 
 
 class Hypothesis:
@@ -58,6 +59,34 @@ class Classifier:
 
     def get_metrics(self) -> Metrics:
         return self.metrics
+
+    def __repr__(self) -> str:
+        lines = [f"Classifier  [{self.type}]"]
+        lines.append("=" * 46)
+        lines.append(f"  {'Hypothesis':<16}: {self.hypothesis.to_string()}")
+        lines.append(f"  {'Supporters':<16}: {len(self.supporters)}")
+        lines.append(f"  {'Opposers':<16}: {len(self.opposers)}")
+
+        computed = [
+            (m.name, getattr(self.metrics, m.attr), m.is_minimized)
+            for m in METADATA
+            if getattr(self.metrics, m.attr) is not None
+        ]
+        if computed:
+            lines.append("")
+            lines.append("  Computed metrics")
+            lines.append("  " + "-" * 42)
+            col = max(len(name) for name, _, _ in computed)
+            for name, value, minimized in computed:
+                fmt = f"{value:.4f}" if isinstance(value, float) else str(value)
+                tag = " (↓)" if minimized else ""
+                lines.append(f"  {name:<{col}}  {fmt}{tag}")
+
+        lines.append("=" * 46)
+        return "\n".join(lines)
+
+    def __str__(self) -> str:
+        return self.__repr__()
 
     def to_dict(self, with_metrics: bool = True) -> dict:
         return {
