@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import typing
 
+import dataclasses
 import gc
 import tqdm
 import numpy
@@ -75,6 +76,57 @@ class LazyFCA:
             negative_classifiers = negative_classifiers[:top_negative]
 
         return positive_classifiers, negative_classifiers
+
+    def __repr__(self) -> str:
+        lines = ["LazyFCA"]
+        lines.append("=" * 40)
+
+        fitted = hasattr(self, "dataset")
+        lines.append(f"  Status       : {'fitted' if fitted else 'not fitted'}")
+
+        if fitted:
+            ds = self.dataset
+            total = len(ds.positive) + len(ds.negative)
+            lines.append(f"  Dataset      : {total} samples "
+                         f"(pos={len(ds.positive)}, neg={len(ds.negative)})")
+            lines.append(f"  Features     : {ds.binary_feature_count} binary, "
+                         f"{ds.numeric_feature_count} numeric")
+
+        lines.append("")
+        lines.append("  Filtering thresholds")
+        lines.append("  " + "-" * 36)
+
+        def fmt_params(label: str, params) -> None:
+            active = {k: v for k, v in dataclasses.asdict(params).items() if v is not None}
+            if active:
+                kv = ", ".join(f"{k}={v}" for k, v in active.items())
+                lines.append(f"  {label:<14}: {kv}")
+            else:
+                lines.append(f"  {label:<14}: (none)")
+
+        fmt_params("pos_params", self.pos_params)
+        fmt_params("neg_params", self.neg_params)
+        lines.append(f"  {'pos_weight':<14}: {self.pos_weight}")
+
+        lines.append("")
+        lines.append("  Ranking & top-k")
+        lines.append("  " + "-" * 36)
+
+        def fmt_opt(label: str, value) -> str:
+            return f"  {label:<14}: {value if value is not None else '—'}"
+
+        lines.append(fmt_opt("pos_rank_by", self.pos_rank_by))
+        lines.append(fmt_opt("neg_rank_by", self.neg_rank_by))
+        lines.append(fmt_opt("rank_by", self.rank_by))
+        lines.append(fmt_opt("pos_top_k", self.pos_top_k))
+        lines.append(fmt_opt("neg_top_k", self.neg_top_k))
+        lines.append(fmt_opt("top_k", self.top_k))
+
+        lines.append("=" * 40)
+        return "\n".join(lines)
+
+    def __str__(self) -> str:
+        return self.__repr__()
 
     def fit(self, X_train: pandas.DataFrame, y_train: pandas.Series):
         self.dataset = Dataset(X_train, y_train)

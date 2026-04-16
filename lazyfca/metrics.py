@@ -124,6 +124,25 @@ class Metrics:
                 setattr(result, metadata.attr, dictionary[metadata.attr])
         return result
 
+    def __repr__(self) -> str:
+        active = [(m.name, getattr(self, m.attr)) for m in METADATA if getattr(self, m.attr) is not None]
+        lines = ["Metrics"]
+        lines.append("=" * 46)
+        if active:
+            col = max(len(name) for name, _ in active)
+            for name, value in active:
+                fmt = f"{value:.4f}" if isinstance(value, float) else str(value)
+                minimized = next(m for m in METADATA if m.name == name).is_minimized
+                tag = " (↓)" if minimized else ""
+                lines.append(f"  {name:<{col}}  {fmt}{tag}")
+        else:
+            lines.append("  (no thresholds / values set)")
+        lines.append("=" * 46)
+        return "\n".join(lines)
+
+    def __str__(self) -> str:
+        return self.__repr__()
+
     def is_better_than(self, other: Metrics) -> bool:
         for metadata in METADATA:
             # If value is not set, consider it as the worst possible value
