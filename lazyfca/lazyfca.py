@@ -14,6 +14,7 @@ from lazyfca.dataset import Subset
 from lazyfca.explanation import Explanation
 from lazyfca.classifier import Classifier
 from lazyfca.metrics import Metrics
+from lazyfca.metrics import METADATA
 
 
 class LazyFCA:
@@ -187,8 +188,9 @@ class LazyFCA:
             rank_by: typing.Optional[str],
             top_k: typing.Optional[int],
         ):
-            classifiers = map(lambda example: Classifier(sample, example, self.dataset, type), subset)
-            classifiers = list(filter(lambda classifier: classifier.metrics.is_better_than(params), classifiers))
+            classifiers = [Classifier(sample, example, self.dataset, type) for example in subset]
+            if any(getattr(params, m.attr) is not None for m in METADATA):
+                classifiers = [c for c in classifiers if c.metrics.is_better_than(params)]
             return self._rank_and_trim(classifiers, rank_by, top_k)
 
         positive_classifiers = make_classifiers(

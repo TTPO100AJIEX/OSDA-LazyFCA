@@ -60,6 +60,12 @@ METADATA = [
 ]
 
 MINIMZED_FIELDS = [metadata.attr for metadata in METADATA if metadata.is_minimized]
+_MINIMIZED_SET = frozenset(MINIMZED_FIELDS)
+
+_METADATA_LOOKUP: dict[str, Metadata] = {}
+for _m in METADATA:
+    _METADATA_LOOKUP[_m.attr] = _m
+    _METADATA_LOOKUP[_m.name] = _m
 
 
 @dataclasses.dataclass
@@ -99,12 +105,10 @@ class Metrics:
 
     def get_metric(self, metric: str):
         if not hasattr(self, metric):
-            for metadata in METADATA:
-                if metadata.name == metric:
-                    metric = metadata.attr
-                    break
-            else:
+            entry = _METADATA_LOOKUP.get(metric)
+            if entry is None:
                 raise NameError(f"Unknown metric: {metric}")
+            metric = entry.attr
         return getattr(self, metric)
 
     def to_dict(self):
@@ -112,7 +116,7 @@ class Metrics:
 
     def score_for_ranking(self, field: str) -> float:
         value = self.get_metric(field)
-        return -value if field in MINIMZED_FIELDS else value
+        return -value if field in _MINIMIZED_SET else value
 
     @staticmethod
     def from_dict(dictionary: dict) -> Metrics:
@@ -166,11 +170,11 @@ class Metrics:
 class LazyMetrics(Metrics):
     def __init__(self, classifier: Classifier):
         self.classifier = classifier
-        self.metrics = Metrics()
 
     def get_metric(self, metric: str):
-        raw = super().get_metric(metric)
-        if raw is not None:
-            return raw
-        next(item for item in METADATA if item.attr == metric or item.name == metric).lazy_calculator(self)
-        return super().get_metric(metric)
+        attr = _METADATA_LOOKUP[metric].attr if metric in _METADATA_LOOKUP else metric
+        value = getattr(self, attr, None)
+        if value is not None:
+            return value
+        _METADATA_LOOKUP[attr].lazy_calculator(self)
+        return getattr(self, attr)

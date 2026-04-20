@@ -26,8 +26,8 @@ class Sample:
 
 class Subset:
     def __init__(self, X: pandas.DataFrame, bool_columns: typing.List[str], numeric_columns: typing.List[str]):
-        self.binary = X[bool_columns].to_numpy().astype(bool)
-        self.numeric = X[numeric_columns].to_numpy().astype(numpy.float64)
+        self.binary = numpy.asfortranarray(X[bool_columns].to_numpy().astype(bool))
+        self.numeric = numpy.asfortranarray(X[numeric_columns].to_numpy().astype(numpy.float64))
 
     def __iter__(self):
         for binary, numeric in zip(self.binary, self.numeric):

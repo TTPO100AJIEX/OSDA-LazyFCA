@@ -14,18 +14,17 @@ from lazyfca.metrics import METADATA
 
 class Hypothesis:
     def __init__(self, lhs: Sample, rhs: Sample):
-        numeric_stacked = numpy.vstack([lhs.numeric, rhs.numeric])
-
         self.binary = lhs.binary & rhs.binary
-        self.numeric_minimum = numeric_stacked.min(axis=0)
-        self.numeric_maximum = numeric_stacked.max(axis=0)
+        self._not_binary = ~self.binary
+        self.numeric_minimum = numpy.minimum(lhs.numeric, rhs.numeric)
+        self.numeric_maximum = numpy.maximum(lhs.numeric, rhs.numeric)
 
     def covers(self, subset: Subset) -> numpy.ndarray:
         # Returns true/false for every object in the subset
-        covers_binary = numpy.all(subset.binary | ~self.binary, axis=1)
-        covers_numeric_minimum = self.numeric_minimum <= subset.numeric
-        covers_numeric_maximum = subset.numeric <= self.numeric_maximum
-        covers_numeric = numpy.all(covers_numeric_minimum & covers_numeric_maximum, axis=1)
+        covers_binary = (subset.binary | self._not_binary).all(axis=1)
+        covers_numeric = (
+            (self.numeric_minimum <= subset.numeric) & (subset.numeric <= self.numeric_maximum)
+        ).all(axis=1)
         return covers_binary & covers_numeric
 
     def to_string(self):
@@ -48,13 +47,12 @@ class Classifier:
         self.dataset = dataset
         self.hypothesis = Hypothesis(lhs, rhs)
         self.type = type
-        match type:
-            case Classifier.Type.POSITIVE:
-                self.supporters = dataset.positive
-                self.opposers = dataset.negative
-            case Classifier.Type.NEGATIVE:
-                self.supporters = dataset.negative
-                self.opposers = dataset.positive
+        if type == Classifier.Type.POSITIVE:
+            self.supporters = dataset.positive
+            self.opposers = dataset.negative
+        else:
+            self.supporters = dataset.negative
+            self.opposers = dataset.positive
         self.metrics = LazyMetrics(self)
 
     def get_metrics(self) -> Metrics:

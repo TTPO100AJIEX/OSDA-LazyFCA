@@ -46,8 +46,8 @@ def contingency_simple(metrics: LazyMetrics):
 
     metrics.tp = int(supporters_covered.sum())
     metrics.fp = int(opposers_covered.sum())
-    metrics.tn = int((~opposers_covered).sum())
-    metrics.fn = int((~supporters_covered).sum())
+    metrics.tn = len(metrics.classifier.opposers) - metrics.fp
+    metrics.fn = len(metrics.classifier.supporters) - metrics.tp
 
     metrics.supporters_covered = metrics.tp
     metrics.opposers_covered = metrics.fp
