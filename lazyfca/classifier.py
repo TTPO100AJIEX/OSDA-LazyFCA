@@ -13,7 +13,7 @@ from lazyfca.metrics import METADATA
 
 
 @numba.njit(cache=True)
-def covers(
+def cover(
     binary: numpy.ndarray,
     numeric_minimum: numpy.ndarray,
     numeric_maximum: numpy.ndarray,
@@ -21,6 +21,7 @@ def covers(
     subset_numeric: numpy.ndarray,
 ) -> numpy.ndarray:
     result = numpy.empty(subset_binary.shape[0], numba.bool)
+    true_count = 0
     for i in range(subset_binary.shape[0]):
         for j in range(binary.shape[0]):
             if binary[j] and not subset_binary[i, j]:
@@ -34,7 +35,9 @@ def covers(
                     break
             else:
                 result[i] = True
-    return result
+                true_count += 1
+
+    return result, true_count, subset_binary.shape[0] - true_count
 
 
 class Classifier:
@@ -55,17 +58,26 @@ class Classifier:
         binary = numpy.empty_like(supporters_binary)
         numeric_minimum = numpy.empty_like(supporters_numeric)
         numeric_maximum = numpy.empty_like(supporters_numeric)
+
         supporters = numpy.empty((supporters_binary.shape[0], supporters_binary.shape[0]), numba.bool)
+        tp = numpy.empty((supporters_binary.shape[0]), numba.int32)
+        fp = numpy.empty((supporters_binary.shape[0]), numba.int32)
+
         opposers = numpy.empty((supporters_binary.shape[0], opposers_binary.shape[0]), numba.bool)
+        tn = numpy.empty((supporters_binary.shape[0]), numba.int32)
+        fn = numpy.empty((supporters_binary.shape[0]), numba.int32)
+
         for i in numba.prange(supporters_binary.shape[0]):
             binary[i] = query_binary & supporters_binary[i]
             numeric_minimum[i] = numpy.minimum(query_numeric, supporters_numeric[i])
             numeric_maximum[i] = numpy.maximum(query_numeric, supporters_numeric[i])
-            supporters[i] = covers(
+            supporters[i], tp[i], fn[i] = cover(
                 binary[i], numeric_minimum[i], numeric_maximum[i], supporters_binary, supporters_numeric
             )
-            opposers[i] = covers(binary[i], numeric_minimum[i], numeric_maximum[i], opposers_binary, opposers_numeric)
-        return binary, numeric_minimum, numeric_maximum, supporters, opposers
+            opposers[i], fp[i], tn[i] = cover(
+                binary[i], numeric_minimum[i], numeric_maximum[i], opposers_binary, opposers_numeric
+            )
+        return binary, numeric_minimum, numeric_maximum, supporters, opposers, tp, fp, tn, fn
 
     @staticmethod
     def calculate_classifiers(sample: Sample, dataset: Dataset, type: Classifier.Type):
@@ -81,6 +93,21 @@ class Classifier:
         )
         return [Classifier(sample, source, dataset, type, *raw) for source, *raw in zip(supporters, *raw)]
 
+    __slots__ = (
+        "type",
+        "query",
+        "source",
+        "dataset",
+        "supporters",
+        "opposers",
+        "binary",
+        "numeric_minimum",
+        "numeric_maximum",
+        "supporters_covered",
+        "opposers_covered",
+        "metrics",
+    )
+
     def __init__(
         self,
         query: Sample,
@@ -92,6 +119,10 @@ class Classifier:
         numeric_maximum: numpy.ndarray,
         supporters: numpy.ndarray,
         opposers: numpy.ndarray,
+        tp: int,
+        fp: int,
+        tn: int,
+        fn: int,
     ):
         self.type = type
         self.query = query
@@ -109,9 +140,13 @@ class Classifier:
         self.numeric_minimum = numeric_minimum
         self.numeric_maximum = numeric_maximum
 
+        self.supporters_covered = supporters
+        self.opposers_covered = opposers
         self.metrics = LazyMetrics(self)
-        self.supporters_covered2 = supporters
-        self.opposers_covered2 = opposers
+        self.metrics.tp = tp
+        self.metrics.fp = fp
+        self.metrics.tn = tn
+        self.metrics.fn = fn
 
     def get_metrics(self) -> Metrics:
         return self.metrics
@@ -154,7 +189,7 @@ class Classifier:
 
     def to_dict(self, with_metrics: bool = True) -> dict:
         return {
-            "Hypothesis": self.hypothesis.to_string(),
+            "Hypothesis": self.to_string(),
             "Type": self.type,
             "Supporters": len(self.supporters),
             "Opposers": len(self.opposers),

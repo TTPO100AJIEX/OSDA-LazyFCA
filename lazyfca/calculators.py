@@ -40,34 +40,19 @@ def _xlogy(observed: float, expected: float) -> float:
     return observed * math.log(observed / expected)
 
 
-def contingency_simple(metrics: LazyMetrics):
-    # supporters_covered = metrics.classifier.hypothesis.covers(metrics.classifier.supporters)
-    # opposers_covered = metrics.classifier.hypothesis.covers(metrics.classifier.opposers)
-    supporters_covered = metrics.classifier.supporters_covered2
-    opposers_covered = metrics.classifier.opposers_covered2
-
-    metrics.tp = int(supporters_covered.sum())
-    metrics.fp = int(opposers_covered.sum())
-    metrics.tn = len(metrics.classifier.opposers) - metrics.fp
-    metrics.fn = len(metrics.classifier.supporters) - metrics.tp
-
-    metrics.supporters_covered = metrics.tp
-    metrics.opposers_covered = metrics.fp
-    metrics.supporter_opposer_ratio = _safe_div(metrics.tp, metrics.fp, numpy.inf)
-
-
 def contingency_complex(metrics: LazyMetrics):
     p, n, tp, fp, fn, tn = _get_basic(metrics)
-    base_pos_rate = _safe_div(p, p + n)
+    base_pos_rate = p / (p + n)
 
-    metrics.support = _safe_div(tp, p)
-    metrics.error_rate = _safe_div(fp, n)
-    metrics.precision = _safe_div(tp, tp + fp)
-    metrics.lift = _safe_div(metrics.precision, base_pos_rate)
-    metrics.wracc = _safe_div(tp + fp, p + n) * (metrics.precision - base_pos_rate)
-    metrics.balanced_precision_proxy = _safe_div(metrics.tp, p) - _safe_div(fp, n)
-    metrics.youdens_j = _safe_div(metrics.tp, tp + fn) - _safe_div(fp, fp + tn)
-    metrics.log_odds_ratio = (tp + 0.5) / (fp + 0.5)
+    metrics.supporter_opposer_ratio = _safe_div(metrics.tp, metrics.fp, numpy.inf)
+    metrics.support = tp / p
+    metrics.error_rate = fp / n
+    metrics.precision = tp / (tp + fp)
+    metrics.lift = metrics.precision / base_pos_rate
+    metrics.wracc = (tp + fp) / (p + n) * (metrics.precision - base_pos_rate)
+    metrics.balanced_precision_proxy = metrics.tp / p - fp / n
+    metrics.youdens_j = metrics.tp / (tp + fn) - fp / (fp + tn)
+    metrics.log_odds_ratio = (2 * tp + 1) / (2 * fp + 1)
 
 
 def matthews_correlation(metrics: LazyMetrics):
@@ -179,10 +164,9 @@ def simplicity_prior(metrics: LazyMetrics):
 
 def stability(metrics: LazyMetrics):
     clf = metrics.classifier
-    supporters_covered = clf.covers(clf.supporters)
 
-    covered_binary = clf.supporters.binary[supporters_covered]
-    covered_numeric = clf.supporters.numeric[supporters_covered]
+    covered_binary = clf.supporters.binary[clf.supporters_covered]
+    covered_numeric = clf.supporters.numeric[clf.supporters_covered]
     witness_sizes = [len(covered_binary)]  # The regenerating subset must be non-empty.
 
     dropped_binary = clf.query.binary & ~clf.binary
