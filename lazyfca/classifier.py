@@ -4,7 +4,6 @@ import numpy
 import numba
 
 from lazyfca.dataset import Sample
-from lazyfca.dataset import Subset
 from lazyfca.dataset import Dataset
 
 
@@ -20,7 +19,7 @@ def covers(
     numeric_maximum: numpy.ndarray,
     subset_binary: numpy.ndarray,
     subset_numeric: numpy.ndarray,
-):
+) -> numpy.ndarray:
     result = numpy.empty(subset_binary.shape[0], numba.bool)
     for i in range(subset_binary.shape[0]):
         for j in range(binary.shape[0]):
@@ -77,20 +76,10 @@ class Classifier:
             case Classifier.Type.NEGATIVE:
                 supporters = dataset.negative
                 opposers = dataset.positive
-        return [
-            Classifier(sample, source, dataset, type, *raw)
-            for source, *raw in zip(
-                supporters,
-                *Classifier.calculate_classifiers_raw(
-                    sample.binary,
-                    sample.numeric,
-                    supporters.binary,
-                    supporters.numeric,
-                    opposers.binary,
-                    opposers.numeric,
-                ),
-            )
-        ]
+        raw = Classifier.calculate_classifiers_raw(
+            sample.binary, sample.numeric, supporters.binary, supporters.numeric, opposers.binary, opposers.numeric
+        )
+        return [Classifier(sample, source, dataset, type, *raw) for source, *raw in zip(supporters, *raw)]
 
     def __init__(
         self,

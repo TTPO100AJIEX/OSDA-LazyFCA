@@ -9,12 +9,9 @@ import pandas
 import joblib
 
 from lazyfca.dataset import Dataset
-from lazyfca.dataset import Sample
-from lazyfca.dataset import Subset
 from lazyfca.explanation import Explanation
 from lazyfca.classifier import Classifier
 from lazyfca.metrics import Metrics
-from lazyfca.metrics import METADATA
 
 
 class LazyFCA:
@@ -64,9 +61,8 @@ class LazyFCA:
             negative_classifiers = self._rank(negative_classifiers, self.rank_by)
             if self.top_k is not None:
                 top_positive, top_negative = 0, 0
-                while top_positive + top_negative < min(
-                    self.top_k, len(positive_classifiers) + len(negative_classifiers)
-                ):
+                at_most_k = min(self.top_k, len(positive_classifiers) + len(negative_classifiers))
+                while top_positive + top_negative < at_most_k:
                     next_positive = positive_classifiers[top_positive].metrics.score_for_ranking(self.rank_by)
                     next_negative = negative_classifiers[top_negative].metrics.score_for_ranking(self.rank_by)
                     if next_positive > next_negative:
@@ -77,10 +73,6 @@ class LazyFCA:
                 negative_classifiers = negative_classifiers[:top_negative]
 
         return positive_classifiers, negative_classifiers
-
-    # ------------------------------------------------------------------
-    # Public API
-    # ------------------------------------------------------------------
 
     def __repr__(self) -> str:
         lines = ["LazyFCA"]
@@ -182,15 +174,13 @@ class LazyFCA:
 
     def explain_sample(self, sample: pandas.Series) -> Explanation:
         sample = self.dataset.make_sample(sample)
+
         positive_classifiers = Classifier.calculate_classifiers(sample, self.dataset, Classifier.Type.POSITIVE)
-        negative_classifiers = Classifier.calculate_classifiers(sample, self.dataset, Classifier.Type.NEGATIVE)
-
-        if any(getattr(self.pos_params, m.attr) is not None for m in METADATA):
-            positive_classifiers = [c for c in positive_classifiers if c.metrics.is_better_than(self.pos_params)]
-        if any(getattr(self.neg_params, m.attr) is not None for m in METADATA):
-            negative_classifiers = [c for c in negative_classifiers if c.metrics.is_better_than(self.neg_params)]
-
+        positive_classifiers = [c for c in positive_classifiers if c.metrics.is_better_than(self.pos_params)]
         positive_classifiers = self._rank_and_trim(positive_classifiers, self.pos_rank_by, self.pos_top_k)
+
+        negative_classifiers = Classifier.calculate_classifiers(sample, self.dataset, Classifier.Type.NEGATIVE)
+        negative_classifiers = [c for c in negative_classifiers if c.metrics.is_better_than(self.neg_params)]
         negative_classifiers = self._rank_and_trim(negative_classifiers, self.neg_rank_by, self.neg_top_k)
 
         positive_classifiers, negative_classifiers = self._get_top_k(positive_classifiers, negative_classifiers)
