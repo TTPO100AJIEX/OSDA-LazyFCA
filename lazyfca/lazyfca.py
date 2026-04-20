@@ -91,7 +91,9 @@ class LazyFCA:
             negative_classifiers = self._rank(negative_classifiers, self.rank_by)
             if self.top_k is not None:
                 top_positive, top_negative = 0, 0
-                while top_positive + top_negative < min(self.top_k, len(positive_classifiers) + len(negative_classifiers)):
+                while top_positive + top_negative < min(
+                    self.top_k, len(positive_classifiers) + len(negative_classifiers)
+                ):
                     next_positive = positive_classifiers[top_positive].metrics.score_for_ranking(self.rank_by)
                     next_negative = negative_classifiers[top_negative].metrics.score_for_ranking(self.rank_by)
                     if next_positive > next_negative:
@@ -210,30 +212,22 @@ class LazyFCA:
         pos, neg = self.dataset.positive, self.dataset.negative
         n_pos, n_neg = len(pos), len(neg)
 
-        q_bin     = numpy.ascontiguousarray(sample.binary)
-        q_num     = numpy.ascontiguousarray(sample.numeric)
+        q_bin = numpy.ascontiguousarray(sample.binary)
+        q_num = numpy.ascontiguousarray(sample.numeric)
         pos_bin_c = numpy.ascontiguousarray(pos.binary)
         pos_num_c = numpy.ascontiguousarray(pos.numeric)
         neg_bin_c = numpy.ascontiguousarray(neg.binary)
         neg_num_c = numpy.ascontiguousarray(neg.numeric)
 
-        pos_tp, pos_fp = compute_tp_fp(
-            q_bin, q_num, pos_bin_c, pos_num_c, pos_bin_c, pos_num_c, neg_bin_c, neg_num_c
-        )
-        neg_tp, neg_fp = compute_tp_fp(
-            q_bin, q_num, neg_bin_c, neg_num_c, neg_bin_c, neg_num_c, pos_bin_c, pos_num_c
-        )
+        pos_tp, pos_fp = compute_tp_fp(q_bin, q_num, pos_bin_c, pos_num_c, pos_bin_c, pos_num_c, neg_bin_c, neg_num_c)
+        neg_tp, neg_fp = compute_tp_fp(q_bin, q_num, neg_bin_c, neg_num_c, neg_bin_c, neg_num_c, pos_bin_c, pos_num_c)
 
         positive_classifiers = [
-            self._make_precached_classifier(
-                sample, pos, i, Classifier.Type.POSITIVE, int(pos_tp[i]), int(pos_fp[i])
-            )
+            self._make_precached_classifier(sample, pos, i, Classifier.Type.POSITIVE, int(pos_tp[i]), int(pos_fp[i]))
             for i in range(n_pos)
         ]
         negative_classifiers = [
-            self._make_precached_classifier(
-                sample, neg, i, Classifier.Type.NEGATIVE, int(neg_tp[i]), int(neg_fp[i])
-            )
+            self._make_precached_classifier(sample, neg, i, Classifier.Type.NEGATIVE, int(neg_tp[i]), int(neg_fp[i]))
             for i in range(n_neg)
         ]
 
@@ -245,9 +239,7 @@ class LazyFCA:
         positive_classifiers = self._rank_and_trim(positive_classifiers, self.pos_rank_by, self.pos_top_k)
         negative_classifiers = self._rank_and_trim(negative_classifiers, self.neg_rank_by, self.neg_top_k)
 
-        positive_classifiers, negative_classifiers = self._get_top_k(
-            positive_classifiers, negative_classifiers
-        )
+        positive_classifiers, negative_classifiers = self._get_top_k(positive_classifiers, negative_classifiers)
         explanation = Explanation(sample, positive_classifiers, negative_classifiers)
         gc.collect()
         return explanation

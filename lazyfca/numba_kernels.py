@@ -4,10 +4,10 @@ import numpy as np
 
 @numba.njit(cache=True)
 def _covers_count(hyp_bin, hyp_min, hyp_max, sub_bin, sub_num):
-    n_sub   = sub_bin.shape[0]
-    n_bin   = hyp_bin.shape[0]
-    n_num   = hyp_min.shape[0]
-    count   = 0
+    n_sub = sub_bin.shape[0]
+    n_bin = hyp_bin.shape[0]
+    n_num = hyp_min.shape[0]
+    count = 0
     for j in range(n_sub):
         ok = True
         for k in range(n_bin):
@@ -28,10 +28,14 @@ def _covers_count(hyp_bin, hyp_min, hyp_max, sub_bin, sub_num):
 
 @numba.njit(cache=True, parallel=True)
 def compute_tp_fp(
-    query_bin, query_num,
-    train_bin, train_num,
-    sup_bin, sup_num,
-    opp_bin, opp_num,
+    query_bin,
+    query_num,
+    train_bin,
+    train_num,
+    sup_bin,
+    sup_num,
+    opp_bin,
+    opp_num,
 ):
     """
     For every training sample i, build hypothesis = query ∩ train[i] and
@@ -39,7 +43,7 @@ def compute_tp_fp(
     All arrays must be C-order (row-major). The outer loop over training
     samples is parallelised across CPU cores with numba.prange.
     """
-    n  = train_bin.shape[0]
+    n = train_bin.shape[0]
     tp = np.empty(n, numba.int32)
     fp = np.empty(n, numba.int32)
     for i in numba.prange(n):
