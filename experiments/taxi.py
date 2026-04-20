@@ -74,7 +74,7 @@ X_train = pandas.DataFrame(ct.fit_transform(X_train), columns = ct.get_feature_n
 X_test = pandas.DataFrame(ct.transform(X_test), columns = ct.get_feature_names_out())
 X_train
 
-classifier = LazyFCA(rank_by = 'youdens_j', top_k = 2, use_numba=True)
+classifier = LazyFCA(rank_by = 'youdens_j', top_k = 2)
 classifier.fit(X_train, y_train)
 
 # Baseline threshold-only performance for reference.
