@@ -78,5 +78,5 @@ classifier = LazyFCA(rank_by = 'youdens_j', top_k = 2, use_numba=True)
 classifier.fit(X_train, y_train)
 
 # Baseline threshold-only performance for reference.
-baseline_y_pred = classifier.predict(X_test[:30], n_jobs = 1)
-print(estimate_quality(baseline_y_pred, y_test[:30]))
+baseline_y_pred = classifier.predict(X_test[:300], n_jobs = -1)
+print(estimate_quality(baseline_y_pred, y_test[:300]))
