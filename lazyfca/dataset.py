@@ -26,6 +26,7 @@ class Sample:
 
 class Subset:
     def __init__(self, X: pandas.DataFrame, bool_columns: typing.List[str], numeric_columns: typing.List[str]):
+        # asfortranarray is important for covers() to work efficiently and hit the CPU cache
         self.binary = numpy.asfortranarray(X[bool_columns].to_numpy().astype(bool))
         self.numeric = numpy.asfortranarray(X[numeric_columns].to_numpy().astype(numpy.float64))
 
@@ -35,6 +36,9 @@ class Subset:
 
     def __len__(self):
         return len(self.binary)
+
+    def __getitem__(self, i: int):
+        return Sample(self.binary[i], self.numeric[i])
 
 
 class Dataset:

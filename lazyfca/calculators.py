@@ -41,8 +41,10 @@ def _xlogy(observed: float, expected: float) -> float:
 
 
 def contingency_simple(metrics: LazyMetrics):
-    supporters_covered = metrics.classifier.hypothesis.covers(metrics.classifier.supporters)
-    opposers_covered = metrics.classifier.hypothesis.covers(metrics.classifier.opposers)
+    # supporters_covered = metrics.classifier.hypothesis.covers(metrics.classifier.supporters)
+    # opposers_covered = metrics.classifier.hypothesis.covers(metrics.classifier.opposers)
+    supporters_covered = metrics.classifier.supporters_covered2
+    opposers_covered = metrics.classifier.opposers_covered2
 
     metrics.tp = int(supporters_covered.sum())
     metrics.fp = int(opposers_covered.sum())
@@ -128,14 +130,14 @@ def similarity(metrics: LazyMetrics):
         query_active = int(clf.query.binary.sum())
         if query_active == 0:
             return 1.0
-        matched = int(clf.hypothesis.binary.sum())
+        matched = int(clf.binary.sum())
         return matched / query_active
 
     def _interval_tightness() -> tuple[float, float]:
         if len(clf.dataset.numeric_range) == 0:
             return 1.0, 0.0
 
-        widths = clf.hypothesis.numeric_maximum - clf.hypothesis.numeric_minimum
+        widths = clf.numeric_maximum - clf.numeric_minimum
         normalized_widths = numpy.divide(
             widths,
             clf.dataset.numeric_range,
@@ -169,7 +171,7 @@ def simplicity_prior(metrics: LazyMetrics):
     clf = metrics.classifier
     interval_tightness = metrics.get_metric("interval_tightness")
 
-    binary_complexity = _safe_div(float(clf.hypothesis.binary.sum()), clf.dataset.binary_feature_count)
+    binary_complexity = _safe_div(float(clf.binary.sum()), clf.dataset.binary_feature_count)
     interval_complexity = 1.0 - interval_tightness
     description_complexity = binary_complexity + interval_complexity
     metrics.simplicity_prior = 1.0 / (1.0 + description_complexity)
@@ -177,21 +179,21 @@ def simplicity_prior(metrics: LazyMetrics):
 
 def stability(metrics: LazyMetrics):
     clf = metrics.classifier
-    supporters_covered = clf.hypothesis.covers(clf.supporters)
+    supporters_covered = clf.covers(clf.supporters)
 
     covered_binary = clf.supporters.binary[supporters_covered]
     covered_numeric = clf.supporters.numeric[supporters_covered]
     witness_sizes = [len(covered_binary)]  # The regenerating subset must be non-empty.
 
-    dropped_binary = clf.query.binary & ~clf.hypothesis.binary
+    dropped_binary = clf.query.binary & ~clf.binary
     for index in numpy.flatnonzero(dropped_binary):
         witness_sizes.append(int((~covered_binary[:, index]).sum()))
 
-    for index in range(len(clf.hypothesis.numeric_minimum)):
-        min_witnesses = int((covered_numeric[:, index] == clf.hypothesis.numeric_minimum[index]).sum())
-        max_witnesses = int((covered_numeric[:, index] == clf.hypothesis.numeric_maximum[index]).sum())
+    for index in range(len(clf.numeric_minimum)):
+        min_witnesses = int((covered_numeric[:, index] == clf.numeric_minimum[index]).sum())
+        max_witnesses = int((covered_numeric[:, index] == clf.numeric_maximum[index]).sum())
         witness_sizes.append(min_witnesses)
-        if clf.hypothesis.numeric_minimum[index] != clf.hypothesis.numeric_maximum[index]:
+        if clf.numeric_minimum[index] != clf.numeric_maximum[index]:
             witness_sizes.append(max_witnesses)
 
     witness_sizes = [size for size in witness_sizes if size > 0]

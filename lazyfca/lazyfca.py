@@ -15,7 +15,6 @@ from lazyfca.explanation import Explanation
 from lazyfca.classifier import Classifier
 from lazyfca.metrics import Metrics
 from lazyfca.metrics import METADATA
-from lazyfca.numba_kernels import compute_tp_fp
 
 
 class LazyFCA:
@@ -42,32 +41,6 @@ class LazyFCA:
         self.neg_top_k = neg_top_k
         self.rank_by = rank_by
         self.top_k = top_k
-
-    # ------------------------------------------------------------------
-    # Internals
-    # ------------------------------------------------------------------
-
-    def _make_precached_classifier(
-        self,
-        query: Sample,
-        subset: Subset,
-        idx: int,
-        type: Classifier.Type,
-        tp: int,
-        fp: int,
-    ) -> Classifier:
-        source = Sample(subset.binary[idx], subset.numeric[idx])
-        clf = Classifier(query, source, self.dataset, type)
-        n_sup = len(clf.supporters)
-        n_opp = len(clf.opposers)
-        clf.metrics.tp = tp
-        clf.metrics.fp = fp
-        clf.metrics.tn = n_opp - fp
-        clf.metrics.fn = n_sup - tp
-        clf.metrics.supporters_covered = tp
-        clf.metrics.opposers_covered = fp
-        clf.metrics.supporter_opposer_ratio = (tp / fp) if fp != 0 else float("inf")
-        return clf
 
     def _rank(self, classifiers: typing.List[Classifier], rank_by: typing.Optional[str]) -> typing.List[Classifier]:
         return sorted(classifiers, key=lambda classifier: classifier.metrics.score_for_ranking(rank_by), reverse=True)
@@ -209,27 +182,8 @@ class LazyFCA:
 
     def explain_sample(self, sample: pandas.Series) -> Explanation:
         sample = self.dataset.make_sample(sample)
-        pos, neg = self.dataset.positive, self.dataset.negative
-        n_pos, n_neg = len(pos), len(neg)
-
-        q_bin = numpy.ascontiguousarray(sample.binary)
-        q_num = numpy.ascontiguousarray(sample.numeric)
-        pos_bin_c = numpy.ascontiguousarray(pos.binary)
-        pos_num_c = numpy.ascontiguousarray(pos.numeric)
-        neg_bin_c = numpy.ascontiguousarray(neg.binary)
-        neg_num_c = numpy.ascontiguousarray(neg.numeric)
-
-        pos_tp, pos_fp = compute_tp_fp(q_bin, q_num, pos_bin_c, pos_num_c, pos_bin_c, pos_num_c, neg_bin_c, neg_num_c)
-        neg_tp, neg_fp = compute_tp_fp(q_bin, q_num, neg_bin_c, neg_num_c, neg_bin_c, neg_num_c, pos_bin_c, pos_num_c)
-
-        positive_classifiers = [
-            self._make_precached_classifier(sample, pos, i, Classifier.Type.POSITIVE, int(pos_tp[i]), int(pos_fp[i]))
-            for i in range(n_pos)
-        ]
-        negative_classifiers = [
-            self._make_precached_classifier(sample, neg, i, Classifier.Type.NEGATIVE, int(neg_tp[i]), int(neg_fp[i]))
-            for i in range(n_neg)
-        ]
+        positive_classifiers = Classifier.calculate_classifiers(sample, self.dataset, Classifier.Type.POSITIVE)
+        negative_classifiers = Classifier.calculate_classifiers(sample, self.dataset, Classifier.Type.NEGATIVE)
 
         if any(getattr(self.pos_params, m.attr) is not None for m in METADATA):
             positive_classifiers = [c for c in positive_classifiers if c.metrics.is_better_than(self.pos_params)]
