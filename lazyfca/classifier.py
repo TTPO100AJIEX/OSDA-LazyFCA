@@ -22,9 +22,9 @@ class Hypothesis:
     def covers(self, subset: Subset) -> numpy.ndarray:
         # Returns true/false for every object in the subset
         covers_binary = (subset.binary | self._not_binary).all(axis=1)
-        covers_numeric = (
-            (self.numeric_minimum <= subset.numeric) & (subset.numeric <= self.numeric_maximum)
-        ).all(axis=1)
+        covers_numeric = ((self.numeric_minimum <= subset.numeric) & (subset.numeric <= self.numeric_maximum)).all(
+            axis=1
+        )
         return covers_binary & covers_numeric
 
     def to_string(self):

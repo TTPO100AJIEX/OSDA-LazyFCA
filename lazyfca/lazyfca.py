@@ -21,14 +21,30 @@ from lazyfca.numba_kernels import NUMBA_AVAILABLE
 from lazyfca.numba_kernels import compute_tp_fp
 
 
-_CONTINGENCY_METRICS = frozenset([
-    "tp", "fp", "tn", "fn",
-    "supporters_covered", "opposers_covered", "supporter_opposer_ratio",
-    "support", "error_rate", "precision", "lift", "wracc",
-    "balanced_precision_proxy", "youdens_j", "log_odds_ratio",
-    "matthews_correlation", "information_gain", "gini_gain",
-    "chi_squared", "g_test",
-])
+_CONTINGENCY_METRICS = frozenset(
+    [
+        "tp",
+        "fp",
+        "tn",
+        "fn",
+        "supporters_covered",
+        "opposers_covered",
+        "supporter_opposer_ratio",
+        "support",
+        "error_rate",
+        "precision",
+        "lift",
+        "wracc",
+        "balanced_precision_proxy",
+        "youdens_j",
+        "log_odds_ratio",
+        "matthews_correlation",
+        "information_gain",
+        "gini_gain",
+        "chi_squared",
+        "g_test",
+    ]
+)
 
 
 def _score_from_contingency(
@@ -72,46 +88,54 @@ def _score_from_contingency(
         return sdiv(tp_f, tp_f + fp_f)
     elif metric == "lift":
         total = n_sup + n_opp
-        base  = n_sup / total if total else 0.0
+        base = n_sup / total if total else 0.0
         return sdiv(sdiv(tp_f, tp_f + fp_f), base) if base else numpy.zeros(len(tp))
     elif metric == "wracc":
         total = n_sup + n_opp
-        base  = n_sup / total if total else 0.0
+        base = n_sup / total if total else 0.0
         return (tp_f + fp_f) / total * (sdiv(tp_f, tp_f + fp_f) - base)
     elif metric in ("balanced_precision_proxy", "youdens_j"):
         return sdiv(tp_f, n_sup) - sdiv(fp_f, n_opp)
     elif metric == "log_odds_ratio":
         return (tp_f + 0.5) / (fp_f + 0.5)
     elif metric == "matthews_correlation":
-        num   = tp_f * tn_f - fp_f * fn_f
+        num = tp_f * tn_f - fp_f * fn_f
         denom = numpy.sqrt((tp_f + fp_f) * (tp_f + fn_f) * (tn_f + fp_f) * (tn_f + fn_f))
         return numpy.where(denom != 0, num / denom, 0.0)
     elif metric == "information_gain":
         total = n_sup + n_opp
+
         def H(p, n):
             t = p + n
             if t == 0 or p == 0 or n == 0:
                 return 0.0
             r = p / t
             return -(r * math.log2(r) + (1 - r) * math.log2(1 - r))
+
         prior = H(n_sup, n_opp)
-        return numpy.array([
-            prior - ((tp[i] + fp[i]) * H(tp[i], fp[i]) + (fn[i] + tn[i]) * H(fn[i], tn[i])) / total
-            for i in range(len(tp))
-        ])
+        return numpy.array(
+            [
+                prior - ((tp[i] + fp[i]) * H(tp[i], fp[i]) + (fn[i] + tn[i]) * H(fn[i], tn[i])) / total
+                for i in range(len(tp))
+            ]
+        )
     elif metric == "gini_gain":
         total = n_sup + n_opp
+
         def G(p, n):
             t = p + n
             if t == 0:
                 return 0.0
             r = p / t
-            return 1.0 - r ** 2 - (1 - r) ** 2
+            return 1.0 - r**2 - (1 - r) ** 2
+
         prior = G(n_sup, n_opp)
-        return numpy.array([
-            prior - ((tp[i] + fp[i]) * G(tp[i], fp[i]) + (fn[i] + tn[i]) * G(fn[i], tn[i])) / total
-            for i in range(len(tp))
-        ])
+        return numpy.array(
+            [
+                prior - ((tp[i] + fp[i]) * G(tp[i], fp[i]) + (fn[i] + tn[i]) * G(fn[i], tn[i])) / total
+                for i in range(len(tp))
+            ]
+        )
     elif metric in ("chi_squared", "g_test"):
         scores = numpy.empty(len(tp))
         for i in range(len(tp)):
@@ -125,10 +149,7 @@ def _score_from_contingency(
             efn = (fnn + tnn) * (t + fnn) / tot
             etn = (fnn + tnn) * (f + tnn) / tot
             if metric == "chi_squared":
-                scores[i] = sum(
-                    (o - e) ** 2 / e if e else 0
-                    for o, e in [(t, etp), (f, efp), (fnn, efn), (tnn, etn)]
-                )
+                scores[i] = sum((o - e) ** 2 / e if e else 0 for o, e in [(t, etp), (f, efp), (fnn, efn), (tnn, etn)])
             else:
                 scores[i] = 2.0 * sum(
                     o * math.log(o / e) if o > 0 and e > 0 else 0
@@ -213,8 +234,8 @@ class LazyFCA:
         pos, neg = self.dataset.positive, self.dataset.negative
         n_pos, n_neg = len(pos), len(neg)
 
-        q_bin     = numpy.ascontiguousarray(sample.binary)
-        q_num     = numpy.ascontiguousarray(sample.numeric)
+        q_bin = numpy.ascontiguousarray(sample.binary)
+        q_num = numpy.ascontiguousarray(sample.numeric)
         pos_bin_c = numpy.ascontiguousarray(pos.binary)
         pos_num_c = numpy.ascontiguousarray(pos.numeric)
         neg_bin_c = numpy.ascontiguousarray(neg.binary)
@@ -222,14 +243,10 @@ class LazyFCA:
 
         # Positive classifiers: hypothesis = query ∩ pos_train[i]
         #   tp = covers(positive subset), fp = covers(negative subset)
-        pos_tp, pos_fp = compute_tp_fp(
-            q_bin, q_num, pos_bin_c, pos_num_c, pos_bin_c, pos_num_c, neg_bin_c, neg_num_c
-        )
+        pos_tp, pos_fp = compute_tp_fp(q_bin, q_num, pos_bin_c, pos_num_c, pos_bin_c, pos_num_c, neg_bin_c, neg_num_c)
         # Negative classifiers: hypothesis = query ∩ neg_train[i]
         #   tp = covers(negative subset), fp = covers(positive subset)
-        neg_tp, neg_fp = compute_tp_fp(
-            q_bin, q_num, neg_bin_c, neg_num_c, neg_bin_c, neg_num_c, pos_bin_c, pos_num_c
-        )
+        neg_tp, neg_fp = compute_tp_fp(q_bin, q_num, neg_bin_c, neg_num_c, neg_bin_c, neg_num_c, pos_bin_c, pos_num_c)
 
         pos_scores = _score_from_contingency(self.rank_by, pos_tp, pos_fp, n_pos, n_neg)
         neg_scores = _score_from_contingency(self.rank_by, neg_tp, neg_fp, n_neg, n_pos)
@@ -251,17 +268,23 @@ class LazyFCA:
 
         positive_classifiers = [
             self._make_precached_classifier(
-                sample, pos, int(pos_order[i]),
+                sample,
+                pos,
+                int(pos_order[i]),
                 Classifier.Type.POSITIVE,
-                int(pos_tp[pos_order[i]]), int(pos_fp[pos_order[i]]),
+                int(pos_tp[pos_order[i]]),
+                int(pos_fp[pos_order[i]]),
             )
             for i in range(top_pos)
         ]
         negative_classifiers = [
             self._make_precached_classifier(
-                sample, neg, int(neg_order[i]),
+                sample,
+                neg,
+                int(neg_order[i]),
                 Classifier.Type.NEGATIVE,
-                int(neg_tp[neg_order[i]]), int(neg_fp[neg_order[i]]),
+                int(neg_tp[neg_order[i]]),
+                int(neg_fp[neg_order[i]]),
             )
             for i in range(top_neg)
         ]
@@ -275,9 +298,7 @@ class LazyFCA:
     # ------------------------------------------------------------------
 
     def _rank(self, classifiers: typing.List[Classifier], rank_by: typing.Optional[str]) -> typing.List[Classifier]:
-        return sorted(
-            classifiers, key=lambda classifier: classifier.metrics.score_for_ranking(rank_by), reverse=True
-        )
+        return sorted(classifiers, key=lambda classifier: classifier.metrics.score_for_ranking(rank_by), reverse=True)
 
     def _rank_and_trim(
         self, classifiers: typing.List[Classifier], rank_by: typing.Optional[str], top_k: typing.Optional[int]
@@ -324,10 +345,8 @@ class LazyFCA:
         if fitted:
             ds = self.dataset
             total = len(ds.positive) + len(ds.negative)
-            lines.append(f"  Dataset      : {total} samples "
-                         f"(pos={len(ds.positive)}, neg={len(ds.negative)})")
-            lines.append(f"  Features     : {ds.binary_feature_count} binary, "
-                         f"{ds.numeric_feature_count} numeric")
+            lines.append(f"  Dataset      : {total} samples (pos={len(ds.positive)}, neg={len(ds.negative)})")
+            lines.append(f"  Features     : {ds.binary_feature_count} binary, {ds.numeric_feature_count} numeric")
 
         lines.append("")
         lines.append("  Filtering thresholds")
