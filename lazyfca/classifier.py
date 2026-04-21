@@ -143,10 +143,10 @@ class Classifier:
         self.supporters_covered = supporters
         self.opposers_covered = opposers
         self.metrics = LazyMetrics(self)
-        self.metrics.tp = tp
-        self.metrics.fp = fp
-        self.metrics.tn = tn
-        self.metrics.fn = fn
+        self.metrics.tp = int(tp)
+        self.metrics.fp = int(fp)
+        self.metrics.tn = int(tn)
+        self.metrics.fn = int(fn)
 
     def get_metrics(self) -> Metrics:
         return self.metrics
@@ -190,7 +190,7 @@ class Classifier:
     def to_dict(self, with_metrics: bool = True) -> dict:
         return {
             "Hypothesis": self.to_string(),
-            "Type": self.type,
+            "Type": "POSITIVE" if self.type == Classifier.Type.POSITIVE else "NEGATIVE",
             "Supporters": len(self.supporters),
             "Opposers": len(self.opposers),
             **(self.metrics.to_dict() if with_metrics else {}),
