@@ -6,7 +6,6 @@ import typing
 if typing.TYPE_CHECKING:
     from lazyfca.classifier import Classifier
 
-from lazyfca.calculators import contingency_simple
 from lazyfca.calculators import contingency_complex
 from lazyfca.calculators import matthews_correlation
 from lazyfca.calculators import information_gain
@@ -17,7 +16,7 @@ from lazyfca.calculators import contingency_expected
 from lazyfca.calculators import stability
 
 
-@dataclasses.dataclass
+@dataclasses.dataclass(frozen=True, slots=True)
 class Metadata:
     name: str
     attr: str
@@ -26,13 +25,11 @@ class Metadata:
 
 
 METADATA = [
-    Metadata(name="True positive", attr="tp", lazy_calculator=contingency_simple),
-    Metadata(name="False positive", attr="fp", lazy_calculator=contingency_simple, is_minimized=True),
-    Metadata(name="True negative", attr="tn", lazy_calculator=contingency_simple),
-    Metadata(name="False negative", attr="fn", lazy_calculator=contingency_simple, is_minimized=True),
-    Metadata(name="Supporters covered", attr="supporters_covered", lazy_calculator=contingency_simple),
-    Metadata(name="Opposers covered", attr="opposers_covered", lazy_calculator=contingency_simple, is_minimized=True),
-    Metadata(name="Supporters to opposers ratio", attr="supporter_opposer_ratio", lazy_calculator=contingency_simple),
+    Metadata(name="True positive", attr="tp", lazy_calculator=None),
+    Metadata(name="False positive", attr="fp", lazy_calculator=None, is_minimized=True),
+    Metadata(name="True negative", attr="tn", lazy_calculator=None),
+    Metadata(name="False negative", attr="fn", lazy_calculator=None, is_minimized=True),
+    Metadata(name="Supporters to opposers ratio", attr="supporter_opposer_ratio", lazy_calculator=contingency_complex),
     Metadata(name="Support", attr="support", lazy_calculator=contingency_complex),
     Metadata(name="Error rate", attr="error_rate", lazy_calculator=contingency_complex, is_minimized=True),
     Metadata(name="Precision", attr="precision", lazy_calculator=contingency_complex),
@@ -59,10 +56,11 @@ METADATA = [
     Metadata(name="Delta stability", attr="delta_stability", lazy_calculator=stability),
 ]
 
-MINIMZED_FIELDS = [metadata.attr for metadata in METADATA if metadata.is_minimized]
+MINIMZED_FIELDS = frozenset([metadata.attr for metadata in METADATA if metadata.is_minimized])
+METADATA_DICT: dict[str, Metadata] = {m.attr: m for m in METADATA}
 
 
-@dataclasses.dataclass
+@dataclasses.dataclass(slots=True)
 class Metrics:
     tp: typing.Optional[int] = None
     fp: typing.Optional[int] = None
@@ -98,14 +96,7 @@ class Metrics:
     delta_stability: typing.Optional[float] = None
 
     def get_metric(self, metric: str):
-        if not hasattr(self, metric):
-            for metadata in METADATA:
-                if metadata.name == metric:
-                    metric = metadata.attr
-                    break
-            else:
-                raise NameError(f"Unknown metric: {metric}")
-        return getattr(self, metric)
+        return getattr(self, metric, None)
 
     def to_dict(self):
         return {metadata.name: self.get_metric(metadata.attr) for metadata in METADATA}
@@ -164,13 +155,14 @@ class Metrics:
 
 
 class LazyMetrics(Metrics):
+    __slots__ = "classifier"
+
     def __init__(self, classifier: Classifier):
         self.classifier = classifier
-        self.metrics = Metrics()
 
     def get_metric(self, metric: str):
         raw = super().get_metric(metric)
         if raw is not None:
             return raw
-        next(item for item in METADATA if item.attr == metric or item.name == metric).lazy_calculator(self)
+        METADATA_DICT[metric].lazy_calculator(self)
         return super().get_metric(metric)

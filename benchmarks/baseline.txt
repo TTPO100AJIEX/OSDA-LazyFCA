@@ -1,0 +1,7 @@
+i113869378:experiments abramov-alex$ python3.13 taxi.py
+100%|███████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████| 30/30 [00:29<00:00,  1.00it/s]
+{'Accuracy': 0.7, 'Precision': 0.6086956521739131, 'Recall': 1.0, 'AUC-ROC': 0.71875, 'F1-score': 0.7567567567567568, 'True Positive': np.int64(14), 'True Negative': np.int64(7), 'False Positive': np.int64(9), 'False Negative': np.int64(0), 'True Negative Rate (Specificity)': np.float64(0.4375), 'Negative Predictive Value': np.float64(1.0), 'False Positive Rate': np.float64(0.5625), 'False Discovery Rate': np.float64(0.391304347826087)}
+i113869378:experiments abramov-alex$ python3.13 taxi_parallel.py
+100%|█████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████| 300/300 [00:47<00:00,  6.30it/s]
+{'Accuracy': 0.76, 'Precision': 0.6785714285714286, 'Recall': 1.0, 'AUC-ROC': 0.7567567567567568, 'F1-score': 0.8085106382978723, 'True Positive': np.int64(152), 'True Negative': np.int64(76), 'False Positive': np.int64(72), 'False Negative': np.int64(0), 'True Negative Rate (Specificity)': np.float64(0.5135135135135135), 'Negative Predictive Value': np.float64(1.0), 'False Positive Rate': np.float64(0.4864864864864865), 'False Discovery Rate': np.float64(0.32142857142857145)}
+i113869378:experiments abramov-alex$ 
