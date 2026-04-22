@@ -20,7 +20,7 @@ def cover(
     subset_binary: numpy.ndarray,
     subset_numeric: numpy.ndarray,
 ) -> numpy.ndarray:
-    result = numpy.empty(subset_binary.shape[0], numba.bool)
+    result = numpy.empty(subset_binary.shape[0], numba.boolean)
     true_count = 0
     for i in range(subset_binary.shape[0]):
         for j in range(binary.shape[0]):
@@ -59,11 +59,11 @@ class Classifier:
         numeric_minimum = numpy.empty_like(supporters_numeric)
         numeric_maximum = numpy.empty_like(supporters_numeric)
 
-        supporters = numpy.empty((supporters_binary.shape[0], supporters_binary.shape[0]), numba.bool)
+        supporters = numpy.empty((supporters_binary.shape[0], supporters_binary.shape[0]), numba.boolean)
         tp = numpy.empty((supporters_binary.shape[0]), numba.int32)
         fp = numpy.empty((supporters_binary.shape[0]), numba.int32)
 
-        opposers = numpy.empty((supporters_binary.shape[0], opposers_binary.shape[0]), numba.bool)
+        opposers = numpy.empty((supporters_binary.shape[0], opposers_binary.shape[0]), numba.boolean)
         tn = numpy.empty((supporters_binary.shape[0]), numba.int32)
         fn = numpy.empty((supporters_binary.shape[0]), numba.int32)
 
