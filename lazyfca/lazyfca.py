@@ -184,7 +184,7 @@ class LazyFCA:
         negative_classifiers = self._rank_and_trim(negative_classifiers, self.neg_rank_by, self.neg_top_k)
 
         positive_classifiers, negative_classifiers = self._get_top_k(positive_classifiers, negative_classifiers)
-        explanation = Explanation(sample, positive_classifiers, negative_classifiers)
+        explanation = Explanation(self.dataset, sample, positive_classifiers, negative_classifiers)
         # gc.collect()
         return explanation
 

@@ -195,3 +195,50 @@ class Classifier:
             "Opposers": len(self.opposers),
             **(self.metrics.to_dict() if with_metrics else {}),
         }
+
+    def is_more_general_than(self, other: Classifier, only_binary: bool = False):
+        if only_binary:
+            if numpy.all(self.binary == other.binary):
+                return False
+            if numpy.any(self.binary & ~other.binary):
+                return False
+            return True
+        else:
+            if self == other:
+                return False
+            if numpy.any(self.binary & ~other.binary):
+                return False
+            if numpy.any(self.numeric_minimum > other.numeric_minimum):
+                return False
+            if numpy.any(self.numeric_maximum < other.numeric_maximum):
+                return False
+            return True
+
+    def __eq__(self, other: Classifier):
+        return (
+            (self.type == other.type)
+            and (id(self.dataset) == id(other.dataset))
+            and numpy.all(self.binary == other.binary)
+            and numpy.all(self.numeric_minimum == other.numeric_minimum)
+            and numpy.all(self.numeric_maximum == other.numeric_maximum)
+        )
+
+    def __hash__(self):
+        return tuple([*self.binary, *self.numeric_minimum, *self.numeric_maximum]).__hash__()
+
+    def clone(self) -> Classifier:
+        return Classifier(
+            query=self.query,
+            source=self.source,
+            dataset=self.dataset,
+            type=self.type,
+            binary=self.binary,
+            numeric_minimum=self.numeric_minimum,
+            numeric_maximum=self.numeric_maximum,
+            supporters=self.supporters_covered,
+            opposers=self.opposers_covered,
+            tp=self.metrics.tp,
+            fp=self.metrics.fp,
+            tn=self.metrics.tn,
+            fn=self.metrics.fn,
+        )
