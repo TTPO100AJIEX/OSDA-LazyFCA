@@ -1,8 +1,10 @@
 from __future__ import annotations
 
+import enum
 import typing
 import dataclasses
 import gc
+
 import tqdm
 import numpy
 import pandas
@@ -17,6 +19,12 @@ from lazyfca.metrics import Metrics
 class LazyFCA:
     Params = Metrics
 
+    class MinimizePolicy(enum.Enum):
+        NO_MINIMIZE = 0
+        BEFORE_FILTER = 1
+        BEFORE_TRIM = 2
+        BEFORE_TOPK = 3
+
     def __init__(
         self,
         pos_params: LazyFCA.Params = Metrics(),
@@ -28,6 +36,7 @@ class LazyFCA:
         neg_top_k: typing.Optional[int] = None,
         rank_by: typing.Optional[str] = None,
         top_k: typing.Optional[int] = None,
+        minimize_policy: MinimizePolicy = MinimizePolicy.NO_MINIMIZE,
     ):
         self.pos_params = pos_params
         self.neg_params = neg_params
@@ -38,41 +47,7 @@ class LazyFCA:
         self.neg_top_k = neg_top_k
         self.rank_by = rank_by
         self.top_k = top_k
-
-    def _rank(self, classifiers: typing.List[Classifier], rank_by: typing.Optional[str]) -> typing.List[Classifier]:
-        return sorted(classifiers, key=lambda classifier: classifier.metrics.score_for_ranking(rank_by), reverse=True)
-
-    def _rank_and_trim(
-        self, classifiers: typing.List[Classifier], rank_by: typing.Optional[str], top_k: typing.Optional[int]
-    ) -> typing.List[Classifier]:
-        if rank_by is not None:
-            classifiers = self._rank(classifiers, rank_by)
-        if top_k is not None:
-            classifiers = classifiers[:top_k]
-        return classifiers
-
-    def _get_top_k(
-        self,
-        positive_classifiers: typing.List[Classifier],
-        negative_classifiers: typing.List[Classifier],
-    ) -> typing.Tuple[typing.List[Classifier], typing.List[Classifier]]:
-        if self.rank_by is not None:
-            positive_classifiers = self._rank(positive_classifiers, self.rank_by)
-            negative_classifiers = self._rank(negative_classifiers, self.rank_by)
-            if self.top_k is not None:
-                top_positive, top_negative = 0, 0
-                at_most_k = min(self.top_k, len(positive_classifiers) + len(negative_classifiers))
-                while top_positive + top_negative < at_most_k:
-                    next_positive = positive_classifiers[top_positive].metrics.score_for_ranking(self.rank_by)
-                    next_negative = negative_classifiers[top_negative].metrics.score_for_ranking(self.rank_by)
-                    if next_positive > next_negative:
-                        top_positive += 1
-                    else:
-                        top_negative += 1
-                positive_classifiers = positive_classifiers[:top_positive]
-                negative_classifiers = negative_classifiers[:top_negative]
-
-        return positive_classifiers, negative_classifiers
+        self.minimize_policy = minimize_policy
 
     def __repr__(self) -> str:
         lines = ["LazyFCA"]
@@ -116,6 +91,7 @@ class LazyFCA:
         lines.append(fmt_opt("pos_top_k", self.pos_top_k))
         lines.append(fmt_opt("neg_top_k", self.neg_top_k))
         lines.append(fmt_opt("top_k", self.top_k))
+        lines.append(fmt_opt("minimize_policy", self.minimize_policy))
 
         lines.append("=" * 40)
         return "\n".join(lines)
@@ -130,26 +106,8 @@ class LazyFCA:
     def classify_explanation(
         self, explanation: Explanation, trust: bool = False, probs: bool = True
     ) -> typing.Tuple[float, float]:
-        if trust:
-            positive_classifiers = explanation.positive_classifiers
-            negative_classifiers = explanation.negative_classifiers
-        else:
-            positive_classifiers = list(
-                filter(
-                    lambda classifier: classifier.metrics.is_better_than(self.pos_params),
-                    explanation.positive_classifiers,
-                )
-            )
-            negative_classifiers = list(
-                filter(
-                    lambda classifier: classifier.metrics.is_better_than(self.neg_params),
-                    explanation.negative_classifiers,
-                )
-            )
-            positive_classifiers = self._rank_and_trim(positive_classifiers, self.pos_rank_by, self.pos_top_k)
-            negative_classifiers = self._rank_and_trim(negative_classifiers, self.neg_rank_by, self.neg_top_k)
-            positive_classifiers, negative_classifiers = self._get_top_k(positive_classifiers, negative_classifiers)
-        positive, negative = len(positive_classifiers), len(negative_classifiers)
+        explanation = self._process_explanation(explanation, trust=trust, inplace=False)
+        positive, negative = len(explanation.positive_classifiers), len(explanation.negative_classifiers)
         if not probs:
             return (negative, positive)
         positive *= self.pos_weight
@@ -174,18 +132,14 @@ class LazyFCA:
 
     def explain_sample(self, sample: pandas.Series) -> Explanation:
         sample = self.dataset.make_sample(sample)
-
-        positive_classifiers = Classifier.calculate_classifiers(sample, self.dataset, Classifier.Type.POSITIVE)
-        positive_classifiers = [c for c in positive_classifiers if c.metrics.is_better_than(self.pos_params)]
-        positive_classifiers = self._rank_and_trim(positive_classifiers, self.pos_rank_by, self.pos_top_k)
-
-        negative_classifiers = Classifier.calculate_classifiers(sample, self.dataset, Classifier.Type.NEGATIVE)
-        negative_classifiers = [c for c in negative_classifiers if c.metrics.is_better_than(self.neg_params)]
-        negative_classifiers = self._rank_and_trim(negative_classifiers, self.neg_rank_by, self.neg_top_k)
-
-        positive_classifiers, negative_classifiers = self._get_top_k(positive_classifiers, negative_classifiers)
-        explanation = Explanation(self.dataset, sample, positive_classifiers, negative_classifiers)
-        # gc.collect()
+        explanation = Explanation(
+            self.dataset,
+            sample,
+            Classifier.calculate_classifiers(sample, self.dataset, Classifier.Type.POSITIVE),
+            Classifier.calculate_classifiers(sample, self.dataset, Classifier.Type.NEGATIVE),
+        )
+        explanation = self._process_explanation(explanation, trust=False, inplace=True)
+        gc.collect()
         return explanation
 
     def explain(self, X_test: pandas.DataFrame, n_jobs: int = -1) -> typing.List[Explanation]:
@@ -195,3 +149,26 @@ class LazyFCA:
                 for _, sample in tqdm.tqdm(X_test.iterrows(), total=len(X_test))
             )
         )
+
+    def _process_explanation(self, explanation: Explanation, trust: bool, inplace: bool):
+        if trust:
+            return explanation
+
+        if self.minimize_policy == LazyFCA.MinimizePolicy.BEFORE_FILTER:
+            explanation = explanation.minimize(inplace=inplace)
+        explanation = explanation.filter(self.pos_params, self.neg_params, inplace=inplace)
+
+        # further we can do inplace=True, this is not a bug. If needed, the copy has already been made above
+        if self.minimize_policy == LazyFCA.MinimizePolicy.BEFORE_TRIM:
+            explanation = explanation.minimize(inplace=True)
+        explanation = explanation.rank(self.pos_rank_by, self.neg_rank_by, inplace=True)
+        explanation = explanation.trim(self.pos_top_k, self.neg_top_k, inplace=True)
+
+        if self.minimize_policy == LazyFCA.MinimizePolicy.BEFORE_TOPK:
+            explanation = explanation.minimize(inplace=True)
+        if self.rank_by is not None:
+            explanation = explanation.rank(self.rank_by, self.rank_by, inplace=True)
+        if self.top_k is not None:
+            explanation = explanation.keep_top_k(self.top_k, inplace=True)
+
+        return explanation

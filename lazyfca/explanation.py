@@ -1,3 +1,4 @@
+from __future__ import annotations
 import typing
 
 import math
@@ -8,6 +9,7 @@ import matplotlib.pyplot as plt
 from lazyfca.classifier import Classifier
 from lazyfca.dataset import Dataset
 from lazyfca.dataset import Sample
+from lazyfca.metrics import Metrics
 
 
 def graph_layout(num_items: int):
@@ -19,37 +21,48 @@ def graph_layout(num_items: int):
 
 def minimize(classifiers: typing.List[Classifier]) -> typing.List[Classifier]:
     result: typing.List[Classifier] = []
-    for key in classifiers:
-        for key2 in result:
-            if numpy.all(key.binary == key2.binary):
+    for i in range(len(classifiers)):
+        for j in range(i + 1, len(classifiers)):
+            if classifiers[j].is_more_general_than(classifiers[i]):
                 break
         else:
-            for key2 in classifiers:
-                if key2.is_more_general_than(key, only_binary=True):
-                    break
-            else:
-                result.append(key.clone())
-
-    for classifier in result:
-        for key in classifiers:
-            if classifier.is_more_general_than(key, only_binary=True):
-                classifier.numeric_minimum = numpy.minimum(classifier.numeric_minimum, key.numeric_minimum)
-                classifier.numeric_maximum = numpy.maximum(classifier.numeric_maximum, key.numeric_maximum)
+            result.append(classifiers[i])
     return result
 
 
+def rank(classifiers: typing.List[Classifier], rank_by: str) -> typing.List[Classifier]:
+    return sorted(classifiers, key=lambda classifier: classifier.metrics.score_for_ranking(rank_by), reverse=True)
+
+
+def filt(classifiers: typing.List[Classifier], thresholds: Metrics) -> typing.List[Classifier]:
+    return [c for c in classifiers if c.metrics.is_better_than(thresholds)]
+
+
 class Explanation:
+    __slots__ = (
+        "dataset",
+        "sample",
+        "positive_classifiers",
+        "negative_classifiers",
+        "positive_ranked_by",
+        "negative_ranked_by",
+    )
+
     def __init__(
         self,
         dataset: Dataset,
         sample: Sample,
         positive_classifiers: typing.List[Classifier],
         negative_classifiers: typing.List[Classifier],
+        positive_ranked_by: typing.Optional[str] = None,
+        negative_ranked_by: typing.Optional[str] = None,
     ):
         self.dataset = dataset
         self.sample = sample
         self.positive_classifiers = positive_classifiers
         self.negative_classifiers = negative_classifiers
+        self.positive_ranked_by = positive_ranked_by
+        self.negative_ranked_by = negative_ranked_by
 
     def __repr__(self) -> str:
         pos_n = len(self.positive_classifiers)
@@ -79,10 +92,70 @@ class Explanation:
     def __str__(self) -> str:
         return self.__repr__()
 
-    def minimize(self):
-        self.positive_classifiers = minimize(self.positive_classifiers)
-        self.negative_classifiers = minimize(self.negative_classifiers)
-        return self
+    def _modify(
+        self,
+        positive_classifiers: typing.List[Classifier],
+        negative_classifiers: typing.List[Classifier],
+        inplace: bool,
+    ):
+        if inplace:
+            self.positive_classifiers = positive_classifiers
+            self.negative_classifiers = negative_classifiers
+            return self
+        else:
+            return Explanation(
+                dataset=self.dataset,
+                sample=self.sample,
+                positive_classifiers=positive_classifiers,
+                negative_classifiers=negative_classifiers,
+                positive_ranked_by=self.positive_ranked_by,
+                negative_ranked_by=self.negative_ranked_by,
+            )
+
+    def filter(self, positive_thresholds: Metrics, negative_thresholds: Metrics, inplace: bool = True) -> Explanation:
+        return self._modify(
+            filt(self.positive_classifiers, positive_thresholds),
+            filt(self.negative_classifiers, negative_thresholds),
+            inplace,
+        )
+
+    def rank(self, positive: typing.Optional[str], negative: typing.Optional[str], inplace: bool = True) -> Explanation:
+        result = self._modify(
+            rank(self.positive_classifiers, positive) if positive is not None else self.positive_classifiers,
+            rank(self.negative_classifiers, negative) if negative is not None else self.negative_classifiers,
+            inplace,
+        )
+        result.positive_ranked_by = result.positive_ranked_by or positive
+        result.negative_ranked_by = result.negative_ranked_by or negative
+        return result
+
+    def trim(self, positive: typing.Optional[int], negative: typing.Optional[int], inplace: bool = True) -> Explanation:
+        if positive is not None:
+            assert self.positive_ranked_by is not None, f"The explanation (positive) must be ranked before trimming"
+        if negative is not None:
+            assert self.negative_ranked_by is not None, f"The explanation (negative) must be ranked before trimming"
+        return self._modify(self.positive_classifiers[:positive], self.negative_classifiers[:negative], inplace)
+
+    def keep_top_k(self, top_k: int, inplace: bool = True) -> Explanation:
+        assert self.positive_ranked_by is not None, f"The explanation (positive) must be ranked before trimming"
+        assert self.negative_ranked_by is not None, f"The explanation (negative) must be ranked before trimming"
+        assert self.positive_ranked_by == self.negative_ranked_by, (
+            f"Positive and negative explanations must be ranked by the same metric before trimming"
+        )
+
+        top_positive, top_negative = 0, 0
+        at_most_k = min(top_k, len(self.positive_classifiers) + len(self.negative_classifiers))
+        while top_positive + top_negative < at_most_k:
+            next_positive = self.positive_classifiers[top_positive].metrics.score_for_ranking(self.positive_ranked_by)
+            next_negative = self.negative_classifiers[top_negative].metrics.score_for_ranking(self.negative_ranked_by)
+            if next_positive > next_negative:
+                top_positive += 1
+            else:
+                top_negative += 1
+        return self._modify(self.positive_classifiers[:top_positive], self.negative_classifiers[:top_negative], inplace)
+
+    def minimize(self, inplace: bool = True) -> Explanation:
+        return self._modify(minimize(self.positive_classifiers), minimize(self.negative_classifiers), inplace)
 
     def display(self):
         return pandas.DataFrame(
@@ -93,15 +166,17 @@ class Explanation:
         )
 
     def display_binary(self):
-        features = {}
-        for hypothesis in self.positive_classifiers:
-            for feature, value in zip(hypothesis.dataset.bool_columns, hypothesis.binary):
-                if value:
-                    features[feature] = features.get(feature, 0) + 1
-        df = pandas.DataFrame(features.items()).transpose()
-        if len(df) != 0:
-            df = df.sort_values(axis=1, by=1, ascending=False)
-        return df
+        def collect_stats(classifiers: typing.List[Classifier]):
+            stats = {}
+            for clf in classifiers:
+                for feature, value in zip(self.dataset.bool_columns, clf.binary):
+                    if value:
+                        stats[feature] = stats.get(feature, 0) + 1
+            return stats
+
+        positive = pandas.DataFrame(collect_stats(self.positive_classifiers).items())
+        negative = pandas.DataFrame(collect_stats(self.negative_classifiers).items())
+        return positive.merge(negative, on=0).rename(columns={0: "feature", "1_x": "positive", "1_y": "negative"})
 
     def display_numeric(self):
         def collect_stats(classifiers: typing.List[Classifier]):

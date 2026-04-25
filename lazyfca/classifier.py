@@ -196,23 +196,16 @@ class Classifier:
             **(self.metrics.to_dict() if with_metrics else {}),
         }
 
-    def is_more_general_than(self, other: Classifier, only_binary: bool = False):
-        if only_binary:
-            if numpy.all(self.binary == other.binary):
-                return False
-            if numpy.any(self.binary & ~other.binary):
-                return False
-            return True
-        else:
-            if self == other:
-                return False
-            if numpy.any(self.binary & ~other.binary):
-                return False
-            if numpy.any(self.numeric_minimum > other.numeric_minimum):
-                return False
-            if numpy.any(self.numeric_maximum < other.numeric_maximum):
-                return False
-            return True
+    def is_more_general_than(self, other: Classifier):
+        if self == other:
+            return False
+        if numpy.any(self.binary & ~other.binary):
+            return False
+        if numpy.any(self.numeric_minimum > other.numeric_minimum):
+            return False
+        if numpy.any(self.numeric_maximum < other.numeric_maximum):
+            return False
+        return True
 
     def __eq__(self, other: Classifier):
         return (
