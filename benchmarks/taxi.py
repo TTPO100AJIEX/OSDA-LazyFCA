@@ -74,8 +74,9 @@ X_train = pandas.DataFrame(ct.fit_transform(X_train), columns = ct.get_feature_n
 X_test = pandas.DataFrame(ct.transform(X_test), columns = ct.get_feature_names_out())
 X_train
 
-classifier = LazyFCA(rank_by = 'youdens_j', top_k = 2)
+classifier = LazyFCA(rank_by = 'youdens_j', top_k = 2, minimize_policy=LazyFCA.MinimizePolicy.BEFORE_TRIM)
 classifier.fit(X_train, y_train)
+classifier.explain_sample(X_test.iloc[500]) # Precompile numba
 
 # Baseline threshold-only performance for reference.
 baseline_y_pred = classifier.predict(X_test[:100], n_jobs = 1)
