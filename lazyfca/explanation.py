@@ -136,11 +136,14 @@ class Explanation:
         return self._modify(self.positive_classifiers[:top_positive], self.negative_classifiers[:top_negative], inplace)
 
     def minimize(self, inplace: bool = True) -> Explanation:
-        return self._modify(
+        result = self._modify(
             Classifier.minimize_classifiers(self.positive_classifiers),
             Classifier.minimize_classifiers(self.negative_classifiers),
             inplace,
         )
+        result.negative_ranked_by = None
+        result.positive_ranked_by = None
+        return result
 
     def display(self):
         return pandas.DataFrame(

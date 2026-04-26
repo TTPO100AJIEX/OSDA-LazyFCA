@@ -236,36 +236,55 @@ class Classifier:
         )
 
     @staticmethod
-    @numba.njit(cache=True, parallel=True)
+    @numba.njit(cache=True)
     def minimize_classifiers_raw(
         batch_binary: numpy.ndarray, batch_numeric_minimum: numpy.ndarray, batch_numeric_maximum: numpy.ndarray
-    ) -> numpy.ndarray:
-        keep = numpy.ones(batch_binary.shape[0], numba.boolean)
-
-        for i in numba.prange(batch_binary.shape[0]):
-            for j in range(i + 1, batch_binary.shape[0]):
-                if is_more_general(
-                    batch_binary[j],
-                    batch_numeric_minimum[j],
-                    batch_numeric_maximum[j],
+    ) -> typing.List[int]:
+        # Allocate enough memory for the worst case. Dynamic memory is expensive.
+        keep, keep_len = numpy.empty(batch_binary.shape[0], numba.int32), 0
+        for i in range(batch_binary.shape[0]):
+            found, j = False, 0
+            while j < keep_len:
+                if not found and is_more_general(
+                    batch_binary[keep[j]],
+                    batch_numeric_minimum[keep[j]],
+                    batch_numeric_maximum[keep[j]],
                     batch_binary[i],
                     batch_numeric_minimum[i],
                     batch_numeric_maximum[i],
                 ):
-                    keep[i] = False
+                    # There is already a more general classifier in the collected set
+                    found = True
                     break
-
-        return keep
+                if is_more_general(
+                    batch_binary[i],
+                    batch_numeric_minimum[i],
+                    batch_numeric_maximum[i],
+                    batch_binary[keep[j]],
+                    batch_numeric_minimum[keep[j]],
+                    batch_numeric_maximum[keep[j]],
+                ):
+                    # keep[j] is less general than the current one
+                    if found:
+                        # current is already in the set
+                        # remove keep[j] by moving it to the end
+                        keep_len -= 1
+                        keep[j] = keep[keep_len]
+                        j -= 1
+                    else:
+                        # current is not in the set, replace keep[j] with current
+                        keep[j], found = i, True
+                j += 1
+            if not found:
+                keep[keep_len] = i
+                keep_len += 1
+        return keep[:keep_len]
 
     @staticmethod
     def minimize_classifiers(classifiers: typing.List[Classifier]) -> typing.List[Classifier]:
-        return list(
-            itertools.compress(
-                classifiers,
-                Classifier.minimize_classifiers_raw(
-                    numpy.stack([c.binary for c in classifiers]),
-                    numpy.stack([c.numeric_minimum for c in classifiers]),
-                    numpy.stack([c.numeric_maximum for c in classifiers]),
-                ),
-            )
+        keep_idx = Classifier.minimize_classifiers_raw(
+            numpy.stack([c.binary for c in classifiers]),
+            numpy.stack([c.numeric_minimum for c in classifiers]),
+            numpy.stack([c.numeric_maximum for c in classifiers]),
         )
+        return [classifiers[i] for i in keep_idx]
