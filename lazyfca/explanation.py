@@ -2,6 +2,7 @@ from __future__ import annotations
 import typing
 
 import math
+import numba
 import numpy
 import pandas
 import matplotlib.pyplot as plt
@@ -19,17 +20,6 @@ def graph_layout(num_items: int):
     return num_items // 5 + 1, 5
 
 
-def minimize(classifiers: typing.List[Classifier]) -> typing.List[Classifier]:
-    result: typing.List[Classifier] = []
-    for i in range(len(classifiers)):
-        for j in range(i + 1, len(classifiers)):
-            if classifiers[j].is_more_general_than(classifiers[i]):
-                break
-        else:
-            result.append(classifiers[i])
-    return result
-
-
 def rank(classifiers: typing.List[Classifier], rank_by: str) -> typing.List[Classifier]:
     return sorted(classifiers, key=lambda classifier: classifier.metrics.score_for_ranking(rank_by), reverse=True)
 
@@ -39,15 +29,6 @@ def filt(classifiers: typing.List[Classifier], thresholds: Metrics) -> typing.Li
 
 
 class Explanation:
-    __slots__ = (
-        "dataset",
-        "sample",
-        "positive_classifiers",
-        "negative_classifiers",
-        "positive_ranked_by",
-        "negative_ranked_by",
-    )
-
     def __init__(
         self,
         dataset: Dataset,
@@ -155,7 +136,11 @@ class Explanation:
         return self._modify(self.positive_classifiers[:top_positive], self.negative_classifiers[:top_negative], inplace)
 
     def minimize(self, inplace: bool = True) -> Explanation:
-        return self._modify(minimize(self.positive_classifiers), minimize(self.negative_classifiers), inplace)
+        return self._modify(
+            Classifier.minimize_classifiers(self.positive_classifiers),
+            Classifier.minimize_classifiers(self.negative_classifiers),
+            inplace,
+        )
 
     def display(self):
         return pandas.DataFrame(

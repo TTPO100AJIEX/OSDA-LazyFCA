@@ -1,4 +1,6 @@
 from __future__ import annotations
+import typing
+import itertools
 
 import numpy
 import numba
@@ -38,6 +40,33 @@ def cover(
                 true_count += 1
 
     return result, true_count, subset_binary.shape[0] - true_count
+
+
+@numba.njit(cache=True)
+def is_more_general(
+    self_binary: numpy.ndarray,
+    self_numeric_minimum: numpy.ndarray,
+    self_numeric_maximum: numpy.ndarray,
+    other_binary: numpy.ndarray,
+    other_numeric_minimum: numpy.ndarray,
+    other_numeric_maximum: numpy.ndarray,
+) -> bool:
+    are_equal = True
+
+    for k in range(len(self_binary)):
+        if self_binary[k] and not other_binary[k]:
+            return False
+        are_equal = are_equal and (self_binary[k] == other_binary[k])
+    for k in range(len(self_numeric_minimum)):
+        if self_numeric_minimum[k] > other_numeric_minimum[k]:
+            return False
+        are_equal = are_equal and (self_numeric_minimum[k] == other_numeric_minimum[k])
+    for k in range(len(self_numeric_maximum)):
+        if self_numeric_maximum[k] < other_numeric_maximum[k]:
+            return False
+        are_equal = are_equal and (self_numeric_maximum[k] == other_numeric_maximum[k])
+
+    return not are_equal
 
 
 class Classifier:
@@ -80,7 +109,7 @@ class Classifier:
         return binary, numeric_minimum, numeric_maximum, supporters, opposers, tp, fp, tn, fn
 
     @staticmethod
-    def calculate_classifiers(sample: Sample, dataset: Dataset, type: Classifier.Type):
+    def calculate_classifiers(sample: Sample, dataset: Dataset, type: Classifier.Type) -> typing.List[Classifier]:
         match type:
             case Classifier.Type.POSITIVE:
                 supporters = dataset.positive
@@ -197,41 +226,46 @@ class Classifier:
         }
 
     def is_more_general_than(self, other: Classifier):
-        if self == other:
-            return False
-        if numpy.any(self.binary & ~other.binary):
-            return False
-        if numpy.any(self.numeric_minimum > other.numeric_minimum):
-            return False
-        if numpy.any(self.numeric_maximum < other.numeric_maximum):
-            return False
-        return True
-
-    def __eq__(self, other: Classifier):
-        return (
-            (self.type == other.type)
-            and (id(self.dataset) == id(other.dataset))
-            and numpy.all(self.binary == other.binary)
-            and numpy.all(self.numeric_minimum == other.numeric_minimum)
-            and numpy.all(self.numeric_maximum == other.numeric_maximum)
+        return is_more_general(
+            self.binary,
+            self.numeric_minimum,
+            self.numeric_maximum,
+            other.binary,
+            other.numeric_minimum,
+            other.numeric_maximum,
         )
 
-    def __hash__(self):
-        return tuple([*self.binary, *self.numeric_minimum, *self.numeric_maximum]).__hash__()
+    @staticmethod
+    @numba.njit(cache=True, parallel=True)
+    def minimize_classifiers_raw(
+        batch_binary: numpy.ndarray, batch_numeric_minimum: numpy.ndarray, batch_numeric_maximum: numpy.ndarray
+    ) -> numpy.ndarray:
+        keep = numpy.ones(batch_binary.shape[0], numba.boolean)
 
-    def clone(self) -> Classifier:
-        return Classifier(
-            query=self.query,
-            source=self.source,
-            dataset=self.dataset,
-            type=self.type,
-            binary=self.binary,
-            numeric_minimum=self.numeric_minimum,
-            numeric_maximum=self.numeric_maximum,
-            supporters=self.supporters_covered,
-            opposers=self.opposers_covered,
-            tp=self.metrics.tp,
-            fp=self.metrics.fp,
-            tn=self.metrics.tn,
-            fn=self.metrics.fn,
+        for i in numba.prange(batch_binary.shape[0]):
+            for j in range(i + 1, batch_binary.shape[0]):
+                if is_more_general(
+                    batch_binary[j],
+                    batch_numeric_minimum[j],
+                    batch_numeric_maximum[j],
+                    batch_binary[i],
+                    batch_numeric_minimum[i],
+                    batch_numeric_maximum[i],
+                ):
+                    keep[i] = False
+                    break
+
+        return keep
+
+    @staticmethod
+    def minimize_classifiers(classifiers: typing.List[Classifier]) -> typing.List[Classifier]:
+        return list(
+            itertools.compress(
+                classifiers,
+                Classifier.minimize_classifiers_raw(
+                    numpy.stack([c.binary for c in classifiers]),
+                    numpy.stack([c.numeric_minimum for c in classifiers]),
+                    numpy.stack([c.numeric_maximum for c in classifiers]),
+                ),
+            )
         )
