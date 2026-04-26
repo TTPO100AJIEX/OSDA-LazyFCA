@@ -139,7 +139,7 @@ class LazyFCA:
             Classifier.calculate_classifiers(sample, self.dataset, Classifier.Type.NEGATIVE),
         )
         explanation = self._process_explanation(explanation, trust=False, inplace=True)
-        # gc.collect()
+        gc.collect()
         return explanation
 
     def explain(self, X_test: pandas.DataFrame, n_jobs: int = -1) -> typing.List[Explanation]:
