@@ -43,16 +43,21 @@ def _xlogy(observed: float, expected: float) -> float:
 def contingency_complex(metrics: LazyMetrics):
     p, n, tp, fp, fn, tn = _get_basic(metrics)
     base_pos_rate = p / (p + n)
+    log_tp = math.log1p(tp)
+    sqrt_tp = math.sqrt(tp)
 
     metrics.supporter_opposer_ratio = _safe_div(metrics.tp, metrics.fp, numpy.inf)
     metrics.support = tp / p
     metrics.error_rate = fp / n
     metrics.precision = tp / (tp + fp)
+    metrics.precision_log_tp = metrics.precision * log_tp
+    metrics.precision_sqrt_tp = metrics.precision * sqrt_tp
     metrics.lift = metrics.precision / base_pos_rate
     metrics.wracc = (tp + fp) / (p + n) * (metrics.precision - base_pos_rate)
     metrics.balanced_precision_proxy = metrics.tp / p - fp / n
     metrics.youdens_j = metrics.tp / (tp + fn) - fp / (fp + tn)
     metrics.log_odds_ratio = (2 * tp + 1) / (2 * fp + 1)
+    metrics.log_odds_ratio_log_tp = metrics.log_odds_ratio * log_tp
 
 
 def matthews_correlation(metrics: LazyMetrics):
@@ -149,6 +154,8 @@ def similarity(metrics: LazyMetrics):
     metrics.query_numeric_similarity = query_numeric_similarity
     metrics.query_similarity = query_similarity
     metrics.query_weighted_precision = metrics.get_metric("precision") * query_similarity
+    metrics.query_weighted_precision_log_tp = metrics.get_metric("precision_log_tp") * query_similarity
+    metrics.query_weighted_precision_sqrt_tp = metrics.get_metric("precision_sqrt_tp") * query_similarity
     metrics.query_weighted_wracc = metrics.get_metric("wracc") * query_similarity
 
 
