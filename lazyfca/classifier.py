@@ -71,8 +71,11 @@ def is_more_general(
 
 class Classifier:
     class Type:
+        # Backwards-compatible aliases used by the original binary code path.
+        # In the multi-class implementation ``Classifier.type`` is the integer
+        # class index (``0..n_classes-1``).
+        NEGATIVE = 0
         POSITIVE = 1
-        NEGATIVE = 2
 
     @staticmethod
     @numba.njit(cache=True, parallel=True)
@@ -109,18 +112,25 @@ class Classifier:
         return binary, numeric_minimum, numeric_maximum, supporters, opposers, tp, fp, tn, fn
 
     @staticmethod
-    def calculate_classifiers(sample: Sample, dataset: Dataset, type: Classifier.Type) -> typing.List[Classifier]:
-        match type:
-            case Classifier.Type.POSITIVE:
-                supporters = dataset.positive
-                opposers = dataset.negative
-            case Classifier.Type.NEGATIVE:
-                supporters = dataset.negative
-                opposers = dataset.positive
+    def calculate_classifiers(
+        sample: Sample, dataset: Dataset, class_index: int
+    ) -> typing.List[Classifier]:
+        """Build the per-supporter classifiers for ``class_index``.
+
+        ``class_index`` is the integer label of the class for which we are
+        constructing classifiers. Supporters are samples of that class and
+        opposers are samples of every other class.
+
+        For backward compatibility ``class_index`` may also be one of the legacy
+        :class:`Classifier.Type` values (``POSITIVE`` / ``NEGATIVE``).
+        """
+        class_index = int(class_index)
+        supporters = dataset.supporters_of(class_index)
+        opposers = dataset.opposers_of(class_index)
         raw = Classifier.calculate_classifiers_raw(
             sample.binary, sample.numeric, supporters.binary, supporters.numeric, opposers.binary, opposers.numeric
         )
-        return [Classifier(sample, source, dataset, type, *raw) for source, *raw in zip(supporters, *raw)]
+        return [Classifier(sample, source, dataset, class_index, *raw) for source, *raw in zip(supporters, *raw)]
 
     __slots__ = (
         "type",
@@ -142,7 +152,7 @@ class Classifier:
         query: Sample,
         source: Sample,
         dataset: Dataset,
-        type: Type,
+        type: int,
         binary: numpy.ndarray,
         numeric_minimum: numpy.ndarray,
         numeric_maximum: numpy.ndarray,
@@ -153,17 +163,13 @@ class Classifier:
         tn: int,
         fn: int,
     ):
-        self.type = type
+        # ``type`` is the class index this classifier votes for.
+        self.type = int(type)
         self.query = query
         self.source = source
         self.dataset = dataset
-        match type:
-            case Classifier.Type.POSITIVE:
-                self.supporters = dataset.positive
-                self.opposers = dataset.negative
-            case Classifier.Type.NEGATIVE:
-                self.supporters = dataset.negative
-                self.opposers = dataset.positive
+        self.supporters = dataset.supporters_of(self.type)
+        self.opposers = dataset.opposers_of(self.type)
 
         self.binary = binary
         self.numeric_minimum = numeric_minimum
@@ -177,6 +183,16 @@ class Classifier:
         self.metrics.tn = int(tn)
         self.metrics.fn = int(fn)
 
+    @property
+    def class_index(self) -> int:
+        """Alias for :attr:`type` — the class index this classifier votes for."""
+        return self.type
+
+    def _type_label(self) -> str:
+        if self.dataset.n_classes == 2:
+            return "POSITIVE" if self.type == 1 else "NEGATIVE"
+        return f"CLASS_{self.type}"
+
     def get_metrics(self) -> Metrics:
         return self.metrics
 
@@ -189,7 +205,7 @@ class Classifier:
         return "; ".join(parts)
 
     def __repr__(self) -> str:
-        lines = [f"Classifier  [{self.type}]"]
+        lines = [f"Classifier  [{self._type_label()}]"]
         lines.append("=" * 46)
         lines.append(f"  {'Hypothesis':<16}: {self.to_string()}")
         lines.append(f"  {'Supporters':<16}: {len(self.supporters)}")
@@ -219,7 +235,8 @@ class Classifier:
     def to_dict(self, with_metrics: bool = True) -> dict:
         return {
             "Hypothesis": self.to_string(),
-            "Type": "POSITIVE" if self.type == Classifier.Type.POSITIVE else "NEGATIVE",
+            "Type": self._type_label(),
+            "Class": self.type,
             "Supporters": len(self.supporters),
             "Opposers": len(self.opposers),
             **(self.metrics.to_dict() if with_metrics else {}),
@@ -282,6 +299,8 @@ class Classifier:
 
     @staticmethod
     def minimize_classifiers(classifiers: typing.List[Classifier]) -> typing.List[Classifier]:
+        if not classifiers:
+            return []
         keep_idx = Classifier.minimize_classifiers_raw(
             numpy.stack([c.binary for c in classifiers]),
             numpy.stack([c.numeric_minimum for c in classifiers]),
