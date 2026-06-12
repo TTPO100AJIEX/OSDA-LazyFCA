@@ -1,0 +1,15 @@
+metric,best_k,best_f1,avg_classifiers_kept
+query_weighted_precision,3,0.9146341463414634,3.0
+interval_tightness,3,0.9141104294478528,3.0
+simplicity_prior,3,0.9141104294478528,3.0
+query_similarity,3,0.9141104294478528,3.0
+log_odds_ratio,1550,0.9073482428115016,1550.0
+precision,957,0.9051321928460342,957.0
+log_odds_ratio_log_tp,479,0.9045383411580594,479.0
+description_volume,4,0.9023255813953488,4.0
+query_weighted_precision_log_tp,16,0.8652246256239601,16.0
+balanced_precision_proxy,1819,0.7846715328467153,1819.0
+precision_log_tp,146,0.6341463414634146,146.0
+delta_stability,1727,0.5992647058823529,1727.0
+query_weighted_precision_sqrt_tp,35,0.4970873786407767,35.0
+precision_sqrt_tp,203,0.3253012048192771,203.0

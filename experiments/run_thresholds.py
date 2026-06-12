@@ -66,6 +66,8 @@ METRICS = [
     'information_gain',
     'gini_gain',
     'log_odds_ratio',
+    'query_weighted_log_odds_ratio',
+    'query_weighted_log_odds_ratio_log_tp',
     'chi_squared',
     'g_test',
     'interval_tightness',

@@ -156,6 +156,8 @@ def similarity(metrics: LazyMetrics):
     metrics.query_weighted_precision = metrics.get_metric("precision") * query_similarity
     metrics.query_weighted_precision_log_tp = metrics.get_metric("precision_log_tp") * query_similarity
     metrics.query_weighted_precision_sqrt_tp = metrics.get_metric("precision_sqrt_tp") * query_similarity
+    metrics.query_weighted_log_odds_ratio = metrics.get_metric("log_odds_ratio") * query_similarity
+    metrics.query_weighted_log_odds_ratio_log_tp = metrics.get_metric("log_odds_ratio_log_tp") * query_similarity
     metrics.query_weighted_wracc = metrics.get_metric("wracc") * query_similarity
 
 

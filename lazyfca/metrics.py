@@ -55,6 +55,12 @@ METADATA = [
     Metadata(name="Query weighted precision", attr="query_weighted_precision", lazy_calculator=similarity),
     Metadata(name="Query weighted precision log TP", attr="query_weighted_precision_log_tp", lazy_calculator=similarity),
     Metadata(name="Query weighted precision sqrt TP", attr="query_weighted_precision_sqrt_tp", lazy_calculator=similarity),
+    Metadata(name="Query weighted log odds ratio", attr="query_weighted_log_odds_ratio", lazy_calculator=similarity),
+    Metadata(
+        name="Query weighted log odds ratio log TP",
+        attr="query_weighted_log_odds_ratio_log_tp",
+        lazy_calculator=similarity,
+    ),
     Metadata(name="Query weighted WRAcc", attr="query_weighted_wracc", lazy_calculator=similarity),
     Metadata(name="Stability", attr="stability", lazy_calculator=stability),
     Metadata(name="Robustness", attr="robustness", lazy_calculator=stability),
@@ -100,6 +106,8 @@ class Metrics:
     query_weighted_precision: typing.Optional[float] = None
     query_weighted_precision_log_tp: typing.Optional[float] = None
     query_weighted_precision_sqrt_tp: typing.Optional[float] = None
+    query_weighted_log_odds_ratio: typing.Optional[float] = None
+    query_weighted_log_odds_ratio_log_tp: typing.Optional[float] = None
     query_weighted_wracc: typing.Optional[float] = None
     stability: typing.Optional[float] = None
     robustness: typing.Optional[float] = None

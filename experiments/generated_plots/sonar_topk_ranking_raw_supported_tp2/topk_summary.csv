@@ -1,0 +1,14 @@
+metric,best_k,best_f1,avg_classifiers_kept
+precision,1,0.0,0.0
+precision_log_tp,1,0.0,0.0
+precision_sqrt_tp,1,0.0,0.0
+balanced_precision_proxy,1,0.0,0.0
+log_odds_ratio,1,0.0,0.0
+log_odds_ratio_log_tp,1,0.0,0.0
+interval_tightness,1,0.0,0.0
+description_volume,1,0.0,0.0
+simplicity_prior,1,0.0,0.0
+query_similarity,1,0.0,0.0
+query_weighted_precision,1,0.0,0.0
+query_weighted_precision_log_tp,1,0.0,0.0
+query_weighted_precision_sqrt_tp,1,0.0,0.0
