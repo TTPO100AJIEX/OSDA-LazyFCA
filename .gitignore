@@ -6,3 +6,9 @@ vm
 .matplotlib/
 .codex
 *.png
+
+paper_experiments/results/*
+!paper_experiments/results/
+!paper_experiments/results/**/*.png
+
+paper/

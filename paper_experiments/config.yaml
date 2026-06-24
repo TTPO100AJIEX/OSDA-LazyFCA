@@ -1,0 +1,159 @@
+run_name: default
+output_dir: paper_experiments/results
+test_size: 0.2
+seeds: [0, 1, 2, 3, 4]
+n_jobs: -1
+force: false
+cache_explanations: false
+random_topk_repeats: 5
+
+k_grid:
+  low: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]
+  geometric:
+    start: 12
+    stop: full
+    num: 24
+
+methods:
+  vanilla_lazyfca:
+    enabled: true
+  global_topk:
+    enabled: true
+  random_topk:
+    enabled: true
+
+metrics:
+  tp:
+    enabled: true
+  fp:
+    enabled: true
+  tn:
+    enabled: true
+  fn:
+    enabled: true
+  supporter_opposer_ratio:
+    enabled: true
+  support:
+    enabled: true
+  error_rate:
+    enabled: true
+  precision:
+    enabled: true
+  precision_log_tp:
+    enabled: true
+  precision_sqrt_tp:
+    enabled: true
+  lift:
+    enabled: true
+  wracc:
+    enabled: true
+  balanced_precision_proxy:
+    enabled: true
+  youdens_j:
+    enabled: true
+  matthews_correlation:
+    enabled: true
+  information_gain:
+    enabled: true
+  gini_gain:
+    enabled: true
+  log_odds_ratio:
+    enabled: true
+  log_odds_ratio_log_tp:
+    enabled: true
+  chi_squared:
+    enabled: true
+  g_test:
+    enabled: true
+  interval_tightness:
+    enabled: true
+  description_volume:
+    enabled: true
+  simplicity_prior:
+    enabled: true
+  query_binary_similarity:
+    enabled: true
+  query_numeric_similarity:
+    enabled: true
+  query_similarity:
+    enabled: true
+  query_weighted_precision:
+    enabled: true
+  query_weighted_precision_log_tp:
+    enabled: true
+  query_weighted_precision_sqrt_tp:
+    enabled: true
+  query_weighted_log_odds_ratio:
+    enabled: true
+  query_weighted_log_odds_ratio_log_tp:
+    enabled: true
+  query_weighted_wracc:
+    enabled: true
+  stability:
+    enabled: true
+  robustness:
+    enabled: true
+  delta_stability:
+    enabled: true
+
+datasets:
+  breast_cancer:
+    enabled: true
+    path: datasets/breast_cancer.csv
+    target: diagnosis
+    drop_columns: [id]
+  churn:
+    enabled: true
+    path: datasets/churn_pr.csv
+    target: Class
+    drop_columns: []
+  page_blocks:
+    enabled: true
+    path: datasets/page_blocks.csv
+    target: class
+    drop_columns: []
+  parkinsons:
+    enabled: true
+    path: datasets/parkinsons.csv
+    target: class
+    drop_columns: []
+  rice:
+    enabled: true
+    path: datasets/rice_pr.csv
+    target: Class
+    drop_columns: []
+  sonar:
+    enabled: true
+    path: datasets/sonar.csv
+    target: class
+    drop_columns: []
+  spambase:
+    enabled: true
+    path: datasets/spambase.csv
+    target: class
+    drop_columns: []
+  waveform:
+    enabled: true
+    path: datasets/waveform.csv
+    target: class
+    drop_columns: []
+  ionosphere:
+    enabled: true
+    path: datasets/ionosphere.data
+    target: class
+    drop_columns: []
+  image_segmentation:
+    enabled: true
+    path: datasets/image_segmentation.csv
+    target: class
+    drop_columns: []
+  vehicle:
+    enabled: true
+    path: datasets/vehicle.csv
+    target: class
+    drop_columns: []
+  glass:
+    enabled: true
+    path: datasets/glass.data
+    target: type
+    drop_columns: [id]
